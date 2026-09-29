@@ -40,6 +40,7 @@ import {
   IFeedbackService,
   IPromptAttachmentTransferService,
   IWindowControllerService,
+  IZeroCodeSessionPortService,
   type IServiceAccessor,
 } from "@zcode/services";
 
@@ -92,6 +93,8 @@ export class RemoteServiceAccess implements IServiceAccessor {
   readonly settingsSyncService: ISettingsSyncService;
   readonly feedbackService: IFeedbackService;
   readonly promptAttachmentTransferService: IPromptAttachmentTransferService;
+  /** MVP-1 SessionPort；远端 host 未注册时调用会失败，UI 须按可选处理。 */
+  readonly zerocodeSessionPortService: IZeroCodeSessionPortService;
 
   constructor(channelClient: IChannelClient) {
     this.fileService = ProxyChannel.toService<IFileService>(
@@ -218,6 +221,9 @@ export class RemoteServiceAccess implements IServiceAccessor {
     );
     this.promptAttachmentTransferService = ProxyChannel.toService<IPromptAttachmentTransferService>(
       channelClient.getChannel(IPromptAttachmentTransferService.channelName),
+    );
+    this.zerocodeSessionPortService = ProxyChannel.toService<IZeroCodeSessionPortService>(
+      channelClient.getChannel(IZeroCodeSessionPortService.channelName),
     );
   }
 }

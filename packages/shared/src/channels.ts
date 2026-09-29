@@ -149,6 +149,8 @@ export const ServiceChannels = {
   OffPeakTask: "off-peak-task",
   /** Onboarding 完成记录服务（本地持久化，后续上传服务器） */
   OnboardingRecord: "onboarding-record",
+  /** MVP-1 ZeroCode ACP SessionPort 薄桥（Host；UI 不直说 ACP） */
+  ZeroCodeSessionPort: "zerocode-session-port",
 } as const;
 
 export type ServiceChannelName = (typeof ServiceChannels)[keyof typeof ServiceChannels];
