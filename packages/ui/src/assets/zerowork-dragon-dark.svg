@@ -1,0 +1,30 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="ZeroWork ZeroCode ouroboros dragon dark">
+  <title>Ouroboros dragon mark (dark)</title>
+  <circle cx="256" cy="256" r="248" fill="#0F2D26"/>
+  <g>
+    <circle cx="256" cy="256" r="210" fill="none" stroke="#E8FFF5" stroke-width="6" opacity="0.12"/>
+    <path d="M256 62
+      C348 62 420 118 438 196
+      C452 256 430 322 378 368
+      C330 410 268 430 210 418
+      C150 404 104 358 90 298
+      C78 246 96 190 140 152
+      C178 120 220 100 256 96"
+      fill="none" stroke="#3DDC97" stroke-width="56" stroke-linecap="round"/>
+    <path d="M256 96
+      C300 100 340 122 368 156
+      C402 198 414 252 400 302
+      C386 350 348 386 300 402"
+      fill="none" stroke="#B8F2D8" stroke-width="22" stroke-linecap="round" opacity="0.75"/>
+    <ellipse cx="372" cy="148" rx="58" ry="48" transform="rotate(28 372 148)" fill="#3DDC97" stroke="#E8FFF5" stroke-width="6"/>
+    <ellipse cx="418" cy="168" rx="28" ry="20" transform="rotate(28 418 168)" fill="#3DDC97" stroke="#E8FFF5" stroke-width="5"/>
+    <circle cx="390" cy="138" r="8" fill="#0F2D26"/>
+    <circle cx="392" cy="136" r="2.5" fill="#E8FFF5"/>
+    <path d="M352 112 L348 78 L372 108 Z" fill="#FFB454" stroke="#E8FFF5" stroke-width="4" stroke-linejoin="round"/>
+    <path d="M340 150 C320 132 318 168 338 172 Z" fill="#FFB454" stroke="#E8FFF5" stroke-width="4" stroke-linejoin="round"/>
+    <path d="M430 178 C438 186 436 198 424 202" fill="none" stroke="#E8FFF5" stroke-width="5" stroke-linecap="round"/>
+    <path d="M150 150 C170 128 200 112 230 104" fill="none" stroke="#3DDC97" stroke-width="28" stroke-linecap="round"/>
+    <path d="M300 78 L308 58 L318 80" fill="#FFB454" stroke="#E8FFF5" stroke-width="3" stroke-linejoin="round"/>
+    <path d="M340 92 L352 72 L360 98" fill="#FFB454" stroke="#E8FFF5" stroke-width="3" stroke-linejoin="round"/>
+  </g>
+</svg>

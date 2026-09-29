@@ -1,0 +1,218 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>ZeroWork</title>
+    <style>
+      html,
+      body,
+      #root {
+        margin: 0;
+        width: 100%;
+        height: 100%;
+      }
+
+      #root {
+        opacity: 0;
+        transition: opacity 0.16s ease;
+      }
+
+      body.zerowork-startup-ready #root {
+        opacity: 1;
+      }
+
+      #loading {
+        position: fixed;
+        inset: 0;
+        z-index: 2147483647;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition: opacity 0.16s ease;
+      }
+
+      body.zerowork-startup-ready #loading {
+        pointer-events: none;
+        opacity: 0;
+      }
+
+      .startup-logo-shell {
+        position: relative;
+        display: flex;
+        width: 96px;
+        height: 96px;
+        align-items: center;
+        justify-content: center;
+        border-radius: 24px;
+        background: linear-gradient(180deg, #000000 0%, #151718 100%);
+        box-shadow:
+          0 20px 25px -5px rgb(0 0 0 / 0.2),
+          0 8px 10px -6px rgb(0 0 0 / 0.2);
+        transform: scale(0.72);
+        opacity: 0;
+        animation: startup-logo-pop 0.72s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+        transform-origin: center;
+      }
+
+      .startup-logo-shell::before {
+        position: absolute;
+        inset: 0;
+        pointer-events: none;
+        content: "";
+        /* 启动 logo 壳是固定深色底，边框不能跟随浅色主题 token，否则首屏边框过重。*/
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        border-radius: inherit;
+      }
+
+      .startup-logo {
+        width: 56px;
+        height: auto;
+        color: #ffffff;
+      }
+
+      @keyframes startup-logo-pop {
+        0% {
+          opacity: 0;
+          transform: scale(0.72);
+        }
+
+        38% {
+          opacity: 1;
+          transform: scale(1.045);
+        }
+
+        58% {
+          transform: scale(0.985);
+        }
+
+        76% {
+          transform: scale(1.008);
+        }
+
+        100% {
+          opacity: 1;
+          transform: scale(1);
+        }
+      }
+
+      @media (prefers-reduced-motion: reduce) {
+        .startup-logo-shell {
+          opacity: 1;
+          transform: scale(1);
+          animation: none;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div id="root"></div>
+    <div
+      id="loading"
+      class="[app-region:drag]"
+      role="status"
+      aria-busy="true"
+      aria-label="Loading..."
+    >
+      <div class="startup-logo-shell">
+        <svg class="startup-logo" aria-hidden="true" focusable="false" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  
+  <defs>
+    <clipPath id="safe"><circle cx="256" cy="256" r="240"/></clipPath>
+  </defs>
+  <!-- soft plate for light backgrounds -->
+  <circle cx="256" cy="256" r="248" fill="#F7FFFB"/>
+  <g clip-path="url(#safe)">
+    <!-- outer ring hint -->
+    <circle cx="256" cy="256" r="210" fill="none" stroke="#0F2D26" stroke-width="6" opacity="0.08"/>
+    <!-- body arc (clockwise ouroboros) -->
+    <path d="M256 62
+      C348 62 420 118 438 196
+      C452 256 430 322 378 368
+      C330 410 268 430 210 418
+      C150 404 104 358 90 298
+      C78 246 96 190 140 152
+      C178 120 220 100 256 96"
+      fill="none" stroke="#3DDC97" stroke-width="56" stroke-linecap="round"/>
+    <!-- belly highlight arc -->
+    <path d="M256 96
+      C300 100 340 122 368 156
+      C402 198 414 252 400 302
+      C386 350 348 386 300 402"
+      fill="none" stroke="#B8F2D8" stroke-width="22" stroke-linecap="round" opacity="0.9"/>
+    <!-- head block near 1–2 o'clock -->
+    <ellipse cx="372" cy="148" rx="58" ry="48" transform="rotate(28 372 148)" fill="#3DDC97" stroke="#0F2D26" stroke-width="6"/>
+    <!-- snout -->
+    <ellipse cx="418" cy="168" rx="28" ry="20" transform="rotate(28 418 168)" fill="#3DDC97" stroke="#0F2D26" stroke-width="5"/>
+    <!-- eye -->
+    <circle cx="390" cy="138" r="8" fill="#0F2D26"/>
+    <circle cx="392" cy="136" r="2.5" fill="#E8FFF5"/>
+    <!-- horn -->
+    <path d="M352 112 L348 78 L372 108 Z" fill="#FFB454" stroke="#0F2D26" stroke-width="4" stroke-linejoin="round"/>
+    <!-- ear fin -->
+    <path d="M340 150 C320 132 318 168 338 172 Z" fill="#FFB454" stroke="#0F2D26" stroke-width="4" stroke-linejoin="round"/>
+    <!-- mouth bite on tip of tail -->
+    <path d="M430 178 C438 186 436 198 424 202" fill="none" stroke="#0F2D26" stroke-width="5" stroke-linecap="round"/>
+    <!-- tail tip entering mouth -->
+    <path d="M150 150 C170 128 200 112 230 104" fill="none" stroke="#3DDC97" stroke-width="28" stroke-linecap="round"/>
+    <path d="M230 104 C250 98 268 96 280 96" fill="none" stroke="#0F2D26" stroke-width="6" stroke-linecap="round" opacity="0.35"/>
+    <!-- small dorsal spikes along upper arc -->
+    <path d="M300 78 L308 58 L318 80" fill="#FFB454" stroke="#0F2D26" stroke-width="3" stroke-linejoin="round"/>
+    <path d="M340 92 L352 72 L360 98" fill="#FFB454" stroke="#0F2D26" stroke-width="3" stroke-linejoin="round"/>
+  </g>
+</svg>
+      </div>
+    </div>
+    <script type="module">
+      const startupLogoShell = document.querySelector(".startup-logo-shell");
+      const startupLoading = document.getElementById("loading");
+      const isUpdateStatusWindow =
+        new URLSearchParams(window.location.search).get("windowKind") === "update-status";
+      const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+      let finished = false;
+      let animationDone = false;
+      let reactReady = false;
+
+      // 主入口不能依赖动画结束后的动态 import；一旦导入路径在 Electron/Vite 下失败，
+      // 页面会永久停在 HTML loading。这里让主入口静态加载，只把启动壳作为动画遮罩延迟移除。
+      const tryFinishStartupAnimation = () => {
+        if (finished || !animationDone || !reactReady) return;
+        finished = true;
+        document.body.classList.add("zerowork-startup-ready");
+        window.setTimeout(() => startupLoading?.remove(), 500);
+      };
+
+      const markAnimationDone = () => {
+        animationDone = true;
+        tryFinishStartupAnimation();
+      };
+
+      const markReactReady = () => {
+        reactReady = true;
+        tryFinishStartupAnimation();
+      };
+
+      if (isUpdateStatusWindow) {
+        // 更新状态窗口本身就是一个轻量弹窗，复用主入口 HTML 时不应再显示启动壳。
+        // 否则透明独立窗口里的启动 logo 会短暂或持续盖在更新按钮上，看起来像弹窗 UI 异常。
+        finished = true;
+        document.body.classList.add("zerowork-startup-ready");
+        startupLoading?.remove();
+      } else {
+        window.addEventListener("zerowork-react-startup-ready", markReactReady, { once: true });
+      }
+
+      if (isUpdateStatusWindow || reduceMotion || !startupLogoShell) {
+        markAnimationDone();
+      } else {
+        startupLogoShell.addEventListener("animationend", markAnimationDone, { once: true });
+        window.setTimeout(markAnimationDone, 1000);
+      }
+
+      if (!isUpdateStatusWindow) {
+        window.setTimeout(markReactReady, 3000);
+      }
+    </script>
+    <script type="module" src="./src/main.tsx"></script>
+  </body>
+</html>
