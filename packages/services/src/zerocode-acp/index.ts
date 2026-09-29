@@ -48,3 +48,10 @@ export {
   ZeroCodeAcpAdapter,
   type ZeroCodeAcpAdapterOptions,
 } from "./ZeroCodeAcpAdapter.js";
+
+export {
+  projectSessionUpdate,
+  unwrapSessionUpdateParams,
+  extractTextContent,
+  type ProjectedSessionUpdate,
+} from "./projectSessionUpdate.js";

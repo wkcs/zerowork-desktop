@@ -8,7 +8,8 @@
  * - Compilable SessionPort surface + spawn/initialize skeleton
  * - Missing binary → Failed with clear error (no fake stream / fake success)
  * - If binary exists: may spawn + initialize (protocolVersion 1 + fs/terminal caps)
- * - Does NOT wire UI hooks / Renderer ACP / claim card-3 dialogue loop
+ * - Card 3: session/prompt + project session/update (nested params.update)
+ * - Does NOT wire UI hooks / Renderer ACP as default Host path
  * - Does NOT replace ZCODE_AGENT_RUNTIME / zcodeAgentProcessManager default path
  */
 
@@ -20,6 +21,7 @@ import {
   type ResolveZeroCodeBinOptions,
 } from "./resolveZeroCodeBin.js";
 import { buildSessionNewMeta, buildZeroCodeAgentSpawnSpec } from "./spawnSpec.js";
+import { projectSessionUpdate } from "./projectSessionUpdate.js";
 import type {
   AgentStatus,
   ConfigOption,
@@ -54,6 +56,11 @@ export interface ZeroCodeAcpAdapterOptions {
    * Production Host should leave this true (default).
    */
   attemptInitialize?: boolean;
+  /**
+   * When true, log raw session/update notification params (shape debug for card 3).
+   * Never use for production UI; may include assistant text.
+   */
+  debugSessionUpdates?: boolean;
 }
 
 interface ActiveSession {
@@ -323,68 +330,22 @@ export class ZeroCodeAcpAdapter implements SessionPort {
       this.options.log?.(`[zerocode-acp] unhandled notification: ${method}`);
       return;
     }
-    const body = params as {
-      sessionId?: string;
-      sessionUpdate?: string;
-      content?: { text?: string };
-      toolCallId?: string;
-      title?: string;
-      kind?: string;
-      rawInput?: unknown;
-      status?: string;
-      rawOutput?: unknown;
-      plan?: unknown;
-      // permission-shaped
-      requestId?: string;
-      toolName?: string;
-    };
-    const sessionId = body?.sessionId;
-    if (!sessionId) return;
-
-    const update = body.sessionUpdate;
-    switch (update) {
-      case "agent_message_chunk":
-        this.emit(sessionId, {
-          type: "assistant_text_delta",
-          text: body.content?.text ?? "",
-        });
-        break;
-      case "agent_thought_chunk":
-        this.emit(sessionId, {
-          type: "assistant_thought_delta",
-          text: body.content?.text ?? "",
-        });
-        break;
-      case "tool_call":
-        this.emit(sessionId, {
-          type: "tool_call_started",
-          toolCallId: body.toolCallId ?? "",
-          title: body.title ?? "",
-          kind: body.kind,
-          input: body.rawInput,
-        });
-        break;
-      case "tool_call_update":
-        this.emit(sessionId, {
-          type: "tool_call_updated",
-          toolCallId: body.toolCallId ?? "",
-          status: body.status ?? "",
-          output: body.rawOutput,
-        });
-        break;
-      case "plan":
-        this.emit(sessionId, { type: "plan_updated", plan: body.plan });
-        break;
-      default:
-        if (body.requestId && body.toolName) {
-          this.emit(sessionId, {
-            type: "permission_requested",
-            requestId: body.requestId,
-            toolName: body.toolName,
-            detail: body,
-          });
-        }
-        break;
+    if (this.options.debugSessionUpdates) {
+      try {
+        this.options.log?.(
+          `[zerocode-acp:debug] session/update params=${JSON.stringify(params)}`,
+        );
+      } catch {
+        this.options.log?.("[zerocode-acp:debug] session/update params=(unserializable)");
+      }
+    }
+    const projected = projectSessionUpdate(params);
+    if (!projected) {
+      this.options.log?.("[zerocode-acp] session/update missing sessionId or sessionUpdate");
+      return;
+    }
+    for (const ev of projected.events) {
+      this.emit(projected.sessionId, ev);
     }
   }
 

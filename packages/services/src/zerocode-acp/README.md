@@ -52,3 +52,14 @@ node --import tsx -e "
   );
 "
 ```
+
+## session/update projection (card 3)
+
+Real ACP `session/update` params nest the payload:
+
+```json
+{ "sessionId": "…", "update": { "sessionUpdate": "agent_message_chunk", "content": { "type": "text", "text": "…" } } }
+```
+
+Host projection lives in `projectSessionUpdate.ts` (`agent_message_chunk` → `assistant_text_delta`). Flat legacy params are tolerated. Enable `debugSessionUpdates` on the adapter to log raw notification params while diagnosing.
+
