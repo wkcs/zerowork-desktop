@@ -17,7 +17,11 @@ import type {
   SessionHandle,
   SessionUiEvent,
 } from "../zerocode-acp/types.js";
-import type { AuthenticateResult } from "../zerocode-acp/authSurface.js";
+import type {
+  AuthenticateResult,
+  ZeroCodeConfigSnapshot,
+  WriteZeroCodeConfigInput,
+} from "../zerocode-acp/authSurface.js";
 
 /**
  * Keep in sync with `ServiceChannels.ZeroCodeSessionPort` in
@@ -40,7 +44,7 @@ export type {
   SessionUiEvent,
 };
 
-export type { AuthenticateResult };
+export type { AuthenticateResult, ZeroCodeConfigSnapshot, WriteZeroCodeConfigInput };
 
 /**
  * Thin Host RPC facade over SessionPort.
@@ -64,6 +68,16 @@ export interface IZeroCodeSessionPortService {
    * Does not open grok.com / z.ai purchase URLs.
    */
   saveByokApiKey(apiKey: string): Promise<{ configPath: string }>;
+  /**
+   * MVP-7: read ~/.zerowork/config.toml for the ZeroCode settings page.
+   * Never returns raw api_key values.
+   */
+  readZeroCodeConfig(): Promise<ZeroCodeConfigSnapshot>;
+  /**
+   * MVP-7: merge-write ZeroCode settings into config.toml.
+   * Does not invent a fake [model.zerocode] / 127.0.0.1:9 product default.
+   */
+  writeZeroCodeConfig(input: WriteZeroCodeConfigInput): Promise<{ configPath: string }>;
   /** Per-session projected UI events (not raw ACP). */
   onDynamicSessionUiEvent(sessionId: string): Event<SessionUiEvent>;
 }

@@ -1,6 +1,6 @@
 /* oxlint-disable eslint(max-lines) */
 /**
- * WelcomeScreen —— OAuth / API Key 登录入口
+ * WelcomeScreen —— 登录入口（MVP-7：无 ZeroCode API Key 表单，进壳后去设置配置）
  *
  * 通过 useOAuth hook 驱动 OAuth 流程。
  */
@@ -21,7 +21,9 @@ import { Button } from "./components/ui/button.js";
 import { ZCodeAboutLogo } from "@/components/ui/ZCodeAboutLogo.js";
 import { useOAuth } from "./hooks/useOAuth.js";
 import { useZCodeIntl } from "./i18n/IntlProvider.js";
-import { LoginApiKeyForm } from "./login/LoginApiKeyForm.js";
+import { useServices } from "./hooks/useServices.js";
+import { buildLoginApiKeySkipSettings } from "./login/LoginApiKeyForm.helpers.js";
+import { logger } from "./logger.js";
 import { renderOAuthProviderIcon } from "./lib/oauthProviderIcon.js";
 import { ThemeHeroVisual } from "./openWorkspacePageThemeHero.js";
 import { useZCodeStore } from "./store/StoreProvider.js";
@@ -90,8 +92,8 @@ function LoginPanel({ active, onComplete }: LoginPanelProps) {
   const loginEntryRequest = useZCodeStore((s) => s.loginEntryRequest);
   const clearLoginEntryRequest = useZCodeStore((s) => s.clearLoginEntryRequest);
   const markLoginEntryAttemptStatus = useZCodeStore((s) => s.markLoginEntryAttemptStatus);
-  const [loginMode, setLoginMode] = useState<"providers" | "apiKey">(
-    MVP5_HIDE_ZAI_PRODUCT_ENTRIES ? "apiKey" : "providers",
+  const [loginMode, setLoginMode] = useState<"providers" | "continue">(
+    MVP5_HIDE_ZAI_PRODUCT_ENTRIES ? "continue" : "providers",
   );
   const wasActiveRef = useRef(active);
   const consumedLoginRequestRef = useRef<number | null>(null);
@@ -246,8 +248,8 @@ function LoginPanel({ active, onComplete }: LoginPanelProps) {
     status,
   ]);
 
-  const resetApiKeyForm = useCallback(() => {
-    setLoginMode("providers");
+  const resetContinueMode = useCallback(() => {
+    setLoginMode(MVP5_HIDE_ZAI_PRODUCT_ENTRIES ? "continue" : "providers");
   }, []);
 
   useEffect(() => {
@@ -268,7 +270,7 @@ function LoginPanel({ active, onComplete }: LoginPanelProps) {
     reset();
     setOAuthError(null);
     clearLoginEntryRequest();
-    resetApiKeyForm();
+    resetContinueMode();
   }, [
     active,
     cancel,
@@ -276,7 +278,7 @@ function LoginPanel({ active, onComplete }: LoginPanelProps) {
     finishActiveLoginEntryAttempt,
     pendingProvider,
     reset,
-    resetApiKeyForm,
+    resetContinueMode,
     setOAuthError,
     status,
   ]);
@@ -347,27 +349,21 @@ function LoginPanel({ active, onComplete }: LoginPanelProps) {
                   size="lg"
                   data-testid={TID_LOGIN_USE_API_KEY_BUTTON}
                   onClick={() => {
-                    setLoginMode("apiKey");
+                    setLoginMode("continue");
                   }}
                 >
-                  {intl.formatMessage({ id: "login.useApiKey" })}
+                  {intl.formatMessage({ id: "login.continueWithoutKey" })}
                 </Button>
               </div>
             ) : null}
           </div>
         )}
 
-        {status === "idle" && loginMode === "apiKey" ? (
-          <LoginApiKeyForm
+        {status === "idle" && loginMode === "continue" ? (
+          <WelcomeContinuePanel
+            showCancel={!MVP5_HIDE_ZAI_PRODUCT_ENTRIES}
             onCancel={() => setLoginMode("providers")}
-            onSaved={() => {
-              resetApiKeyForm();
-              return onComplete("apiKey");
-            }}
-            onSkipped={() => {
-              resetApiKeyForm();
-              return onComplete("skip");
-            }}
+            onContinue={() => onComplete("skip")}
           />
         ) : null}
 
@@ -451,6 +447,80 @@ function LoginPanel({ active, onComplete }: LoginPanelProps) {
         )}
       </div>
     </>
+  );
+}
+
+function WelcomeContinuePanel({
+  showCancel,
+  onCancel,
+  onContinue,
+}: {
+  showCancel: boolean;
+  onCancel: () => void;
+  onContinue: () => void | Promise<void>;
+}) {
+  const { intl } = useZCodeIntl();
+  const { settingService } = useServices();
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const handleContinue = async () => {
+    setBusy(true);
+    setError(null);
+    try {
+      await settingService.update(buildLoginApiKeySkipSettings(Date.now()));
+      await onContinue();
+    } catch (skipError) {
+      logger.error("[Welcome] continue without API key failed", { error: skipError });
+      setError(
+        intl.formatMessage(
+          { id: "login.continueError" },
+          {
+            error: skipError instanceof Error ? skipError.message : String(skipError),
+          },
+        ),
+      );
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <div className="space-y-4" data-testid="welcome-continue-panel">
+      <p className="text-ui-base text-foreground-subtle text-center">
+        {intl.formatMessage({ id: "login.continueHint" })}
+      </p>
+      {error ? (
+        <Alert variant="destructive" data-testid={TID_OAUTH_ERROR}>
+          <TriangleAlertIcon className="size-4" />
+          <AlertDescription>{error}</AlertDescription>
+        </Alert>
+      ) : null}
+      <Button
+        type="button"
+        className="h-10 w-full text-ui-base"
+        size="lg"
+        data-testid={TID_LOGIN_USE_API_KEY_BUTTON}
+        disabled={busy}
+        onClick={() => void handleContinue()}
+      >
+        {busy ? <Loader2Icon className="size-4 animate-spin" /> : null}
+        {intl.formatMessage({ id: "login.continueToApp" })}
+      </Button>
+      {showCancel ? (
+        <Button
+          type="button"
+          variant="outline"
+          className="h-10 w-full text-ui-base"
+          size="lg"
+          data-testid={TID_OAUTH_CANCEL}
+          disabled={busy}
+          onClick={onCancel}
+        >
+          {intl.formatMessage({ id: "login.apiKey.cancel" })}
+        </Button>
+      ) : null}
+    </div>
   );
 }
 

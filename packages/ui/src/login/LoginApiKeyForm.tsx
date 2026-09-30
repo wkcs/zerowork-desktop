@@ -1,3 +1,4 @@
+/** MVP-7 deprecated: Welcome no longer mounts this form; prefer Settings → ZeroCode config + writeZeroCodeConfig. Kept for reference only. */
 import { useState } from "react";
 import { Loader2Icon, TriangleAlertIcon } from "lucide-react";
 import {

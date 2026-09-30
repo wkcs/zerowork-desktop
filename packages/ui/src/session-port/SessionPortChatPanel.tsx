@@ -7,6 +7,8 @@
 import { useCallback, useState, type CSSProperties, type FormEvent } from "react";
 import { useOptionalServices } from "@/hooks/useServices.js";
 import { isAuthCredentialsMissing } from "./isAuthCredentialsMissing.js";
+import { setPendingSettingsSectionIntent } from "@/lib/settingsNavigation.js";
+import { useOptionalTabStore } from "@/store/TabStoreProvider.js";
 import { useSessionPortChat } from "./useSessionPortChat.js";
 
 export type SessionPortChatPanelVariant = "dock" | "main";
@@ -105,6 +107,7 @@ function unavailableState(variant: SessionPortChatPanelVariant) {
 function SessionPortErrorBanner(props: {
   message: string;
   onDismiss: () => void;
+  onOpenSettings?: () => void;
 }) {
   const authMissing = isAuthCredentialsMissing(props.message);
 
@@ -119,9 +122,21 @@ function SessionPortErrorBanner(props: {
           API key required / 需要配置 API key
         </div>
         <div style={{ whiteSpace: "pre-wrap", wordBreak: "break-word" }}>{props.message}</div>
-        <button type="button" onClick={props.onDismiss} style={{ marginTop: 8, fontSize: 12 }}>
-          Dismiss
-        </button>
+        <div style={{ display: "flex", gap: 8, marginTop: 8, flexWrap: "wrap" }}>
+          {props.onOpenSettings ? (
+            <button
+              type="button"
+              data-testid="zerocode-session-port-auth-open-settings"
+              onClick={props.onOpenSettings}
+              style={{ fontSize: 12 }}
+            >
+              Open ZeroCode settings / 打开 ZeroCode 配置
+            </button>
+          ) : null}
+          <button type="button" onClick={props.onDismiss} style={{ fontSize: 12 }}>
+            Dismiss
+          </button>
+        </div>
       </div>
     );
   }
@@ -147,6 +162,11 @@ export function SessionPortChatPanel(props: {
   const services = useOptionalServices();
   const service = services?.zerocodeSessionPortService;
   const enabled = props.enabled ?? true;
+  const openSettingsTab = useOptionalTabStore((state) => state.openSettingsTab);
+  const openZeroCodeSettings = () => {
+    setPendingSettingsSectionIntent("zeroCodeConfig");
+    openSettingsTab();
+  };
 
   const chat = useSessionPortChat({
     service,
@@ -195,7 +215,8 @@ export function SessionPortChatPanel(props: {
       </header>
 
       {chat.error ? (
-        <SessionPortErrorBanner message={chat.error} onDismiss={chat.clearError} />
+        <SessionPortErrorBanner message={chat.error} onDismiss={chat.clearError}
+          onOpenSettings={openZeroCodeSettings} />
       ) : null}
 
       <div style={listStyle} data-testid="zerocode-session-port-bubbles">

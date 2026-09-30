@@ -13,7 +13,11 @@ import {
   AuthCredentialsMissingError,
   projectAuthFailureToSessionUiEvent,
   writeByokApiKeyToConfig,
+  readZeroCodeConfig,
+  writeZeroCodeConfig,
   type AuthenticateResult,
+  type ZeroCodeConfigSnapshot,
+  type WriteZeroCodeConfigInput,
 } from "../zerocode-acp/authSurface.js";
 import type {
   AgentStatus,
@@ -142,6 +146,21 @@ export function createZeroCodeSessionPortService(
     async saveByokApiKey(apiKey: string): Promise<{ configPath: string }> {
       const result = writeByokApiKeyToConfig(apiKey);
       options.log?.(`[zerocode-session-port] BYOK saved to ${result.configPath}`);
+      return result;
+    },
+
+    async readZeroCodeConfig(): Promise<ZeroCodeConfigSnapshot> {
+      return readZeroCodeConfig();
+    },
+
+    async writeZeroCodeConfig(
+      input: WriteZeroCodeConfigInput,
+    ): Promise<{ configPath: string }> {
+      const result = writeZeroCodeConfig(input);
+      // Do not log secrets / api keys — path only.
+      options.log?.(
+        `[zerocode-session-port] ZeroCode config written to ${result.configPath}`,
+      );
       return result;
     },
 

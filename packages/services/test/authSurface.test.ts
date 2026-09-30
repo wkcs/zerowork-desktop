@@ -14,6 +14,8 @@ import {
   extractAuthFailureParts,
   hasByokKeyPathInConfig,
   writeByokApiKeyToConfig,
+  readZeroCodeConfig,
+  writeZeroCodeConfig,
   parseInitializeAuthSnapshot,
   projectAuthFailureToSessionUiEvent,
   resolveAgentConfigTomlPath,
@@ -273,4 +275,253 @@ default_skills_installs_purged = true
 
 test("writeByokApiKeyToConfig rejects empty key", () => {
   assert.throws(() => writeByokApiKeyToConfig("   ", { GROK_HOME: "/tmp/unused" }), /empty/i);
+});
+
+test("readZeroCodeConfig returns preferredMethod, defaultModelId, models without raw api_key", () => {
+  const root = mkdtempSync(join(tmpdir(), "zw-mvp7-read-"));
+  const dataDir = join(root, ".zerowork");
+  mkdirSync(dataDir, { recursive: true });
+  writeFileSync(
+    join(dataDir, "config.toml"),
+    `[models]
+default = "my-provider"
+
+[model.my-provider]
+name = "My Provider"
+base_url = "https://api.example.com/v1"
+model = "gpt-4o-mini"
+api_key = "sk-secret-ABCDEFGH"
+
+[auth]
+preferred_method = "api_key"
+`,
+    "utf8",
+  );
+  try {
+    const snap = readZeroCodeConfig({ GROK_HOME: dataDir });
+    assert.equal(snap.configPath, join(dataDir, "config.toml"));
+    assert.equal(snap.preferredMethod, "api_key");
+    assert.equal(snap.defaultModelId, "my-provider");
+    assert.equal(snap.models.length, 1);
+    assert.equal(snap.models[0]!.id, "my-provider");
+    assert.equal(snap.models[0]!.name, "My Provider");
+    assert.equal(snap.models[0]!.baseUrl, "https://api.example.com/v1");
+    assert.equal(snap.models[0]!.model, "gpt-4o-mini");
+    assert.equal(snap.models[0]!.apiKeySet, true);
+    assert.equal(snap.models[0]!.apiKeyMasked, "EFGH");
+    const json = JSON.stringify(snap);
+    assert.equal(json.includes("sk-secret"), false);
+    assert.equal(json.includes("ABCDEFGH"), false);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test("readZeroCodeConfig omits apiKeyMasked when no key; empty file yields nulls", () => {
+  const root = mkdtempSync(join(tmpdir(), "zw-mvp7-read-empty-"));
+  const dataDir = join(root, ".zerowork");
+  mkdirSync(dataDir, { recursive: true });
+  writeFileSync(
+    join(dataDir, "config.toml"),
+    `[model.placeholder]
+name = "Placeholder"
+base_url = "https://api.example.com/v1"
+`,
+    "utf8",
+  );
+  try {
+    const snap = readZeroCodeConfig({ GROK_HOME: dataDir });
+    assert.equal(snap.preferredMethod, null);
+    assert.equal(snap.defaultModelId, null);
+    assert.equal(snap.models.length, 1);
+    assert.equal(snap.models[0]!.apiKeySet, false);
+    assert.equal(snap.models[0]!.apiKeyMasked, undefined);
+    const missing = readZeroCodeConfig({ GROK_HOME: join(root, "no-such") });
+    assert.equal(missing.preferredMethod, null);
+    assert.deepEqual(missing.models, []);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test("writeZeroCodeConfig merges models, sets preferred_method, preserves comments and other tables", () => {
+  const root = mkdtempSync(join(tmpdir(), "zw-mvp7-write-merge-"));
+  const dataDir = join(root, ".zerowork");
+  mkdirSync(dataDir, { recursive: true });
+  writeFileSync(
+    join(dataDir, "config.toml"),
+    `# keep this top comment
+
+[model.existing]
+name = "Existing"
+base_url = "https://old.example.com/v1"
+api_key = "keep-me-secret-key"
+temperature = 0.2
+
+[auth]
+preferred_method = "oauth"
+# auth note
+
+[marketplace]
+default_skills_installs_purged = true
+`,
+    "utf8",
+  );
+  try {
+    const { configPath } = writeZeroCodeConfig(
+      {
+        defaultModelId: "my-provider",
+        models: [
+          {
+            id: "my-provider",
+            name: "My Provider",
+            baseUrl: "https://api.example.com/v1",
+            model: "gpt-4o-mini",
+            apiKey: "sk-new-key-1234",
+          },
+          {
+            id: "existing",
+            name: "Existing Updated",
+            // omit apiKey → keep existing
+          },
+        ],
+      },
+      { GROK_HOME: dataDir },
+    );
+    assert.equal(configPath, join(dataDir, "config.toml"));
+    const body = readFileSync(configPath, "utf8");
+    assert.match(body, /# keep this top comment/);
+    assert.match(body, /\[marketplace\]/);
+    assert.match(body, /default_skills_installs_purged\s*=\s*true/);
+    assert.match(body, /preferred_method\s*=\s*"api_key"/);
+    assert.match(body, /\[models\]/);
+    assert.match(body, /default\s*=\s*"my-provider"/);
+    assert.match(body, /\[model\.my-provider\]/);
+    assert.match(body, /base_url\s*=\s*"https:\/\/api\.example\.com\/v1"/);
+    assert.match(body, /api_key\s*=\s*"sk-new-key-1234"/);
+    assert.match(body, /api_key\s*=\s*"keep-me-secret-key"/);
+    assert.match(body, /name\s*=\s*"Existing Updated"/);
+    assert.match(body, /temperature\s*=\s*0\.2/);
+    assert.equal(body.includes("127.0.0.1:9"), false);
+    assert.equal(body.includes("[model.zerocode]"), false);
+    assert.equal(hasByokKeyPathInConfig({ GROK_HOME: dataDir }), true);
+
+    const snap = readZeroCodeConfig({ GROK_HOME: dataDir });
+    assert.equal(snap.preferredMethod, "api_key");
+    assert.equal(snap.defaultModelId, "my-provider");
+    const existing = snap.models.find((m) => m.id === "existing");
+    assert.ok(existing);
+    assert.equal(existing!.apiKeySet, true);
+    assert.equal(existing!.apiKeyMasked, "-key");
+    const mine = snap.models.find((m) => m.id === "my-provider");
+    assert.ok(mine);
+    assert.equal(mine!.apiKeyMasked, "1234");
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test("writeZeroCodeConfig keeps api_key when apiKey omitted or blank", () => {
+  const root = mkdtempSync(join(tmpdir(), "zw-mvp7-write-keep-key-"));
+  const dataDir = join(root, ".zerowork");
+  mkdirSync(dataDir, { recursive: true });
+  writeFileSync(
+    join(dataDir, "config.toml"),
+    `[model.keep]
+name = "Keep"
+api_key = "original-key-zzzz"
+
+[auth]
+preferred_method = "api_key"
+`,
+    "utf8",
+  );
+  try {
+    writeZeroCodeConfig(
+      {
+        models: [{ id: "keep", name: "Keep Renamed", apiKey: "   " }],
+      },
+      { GROK_HOME: dataDir },
+    );
+    let body = readFileSync(join(dataDir, "config.toml"), "utf8");
+    assert.match(body, /api_key\s*=\s*"original-key-zzzz"/);
+    assert.match(body, /name\s*=\s*"Keep Renamed"/);
+
+    writeZeroCodeConfig(
+      { models: [{ id: "keep", baseUrl: "https://api.example.com/v1" }] },
+      { GROK_HOME: dataDir },
+    );
+    body = readFileSync(join(dataDir, "config.toml"), "utf8");
+    assert.match(body, /api_key\s*=\s*"original-key-zzzz"/);
+    assert.match(body, /base_url\s*=\s*"https:\/\/api\.example\.com\/v1"/);
+    assert.equal(hasByokKeyPathInConfig({ GROK_HOME: dataDir }), true);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test("writeZeroCodeConfig rejects unsafe model ids", () => {
+  const root = mkdtempSync(join(tmpdir(), "zw-mvp7-write-badid-"));
+  const dataDir = join(root, ".zerowork");
+  try {
+    assert.throws(
+      () => writeZeroCodeConfig({ models: [{ id: "" }] }, { GROK_HOME: dataDir }),
+      /empty/i,
+    );
+    assert.throws(
+      () =>
+        writeZeroCodeConfig(
+          { models: [{ id: "foo.bar" }] },
+          { GROK_HOME: dataDir },
+        ),
+      /invalid model id/i,
+    );
+    assert.throws(
+      () =>
+        writeZeroCodeConfig(
+          { models: [{ id: "foo[bar]" }] },
+          { GROK_HOME: dataDir },
+        ),
+      /invalid model id/i,
+    );
+    assert.throws(
+      () =>
+        writeZeroCodeConfig(
+          { models: [{ id: "foo\nbar" }] },
+          { GROK_HOME: dataDir },
+        ),
+      /invalid model id/i,
+    );
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test("writeZeroCodeConfig creates fresh file with 0600 semantics path and no fake zerocode model", () => {
+  const root = mkdtempSync(join(tmpdir(), "zw-mvp7-write-fresh-"));
+  const dataDir = join(root, ".zerowork");
+  try {
+    writeZeroCodeConfig(
+      {
+        defaultModelId: "openai-compat",
+        models: [
+          {
+            id: "openai-compat",
+            name: "OpenAI Compat",
+            baseUrl: "https://api.example.com/v1",
+            apiKey: "sk-fresh-key",
+          },
+        ],
+      },
+      { GROK_HOME: dataDir },
+    );
+    const body = readFileSync(join(dataDir, "config.toml"), "utf8");
+    assert.match(body, /\[model\.openai-compat\]/);
+    assert.match(body, /preferred_method\s*=\s*"api_key"/);
+    assert.equal(body.includes("[model.zerocode]"), false);
+    assert.equal(body.includes("127.0.0.1:9"), false);
+    assert.equal(hasByokKeyPathInConfig({ GROK_HOME: dataDir }), true);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
 });
