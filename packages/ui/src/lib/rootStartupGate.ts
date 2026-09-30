@@ -41,7 +41,8 @@ export function shouldShowRootStartupLoading(state: RootStartupLoadingVisibility
 }
 
 export function shouldEnableProviderAvailabilityLoginEntryGuard(): boolean {
-  return true;
+  // MVP-5 卡2：不再因缺 ZAI/BigModel provider 强制 WelcomeScreen OAuth 墙，放行 ZeroCode BYOK。
+  return false;
 }
 
 export function shouldResolveProviderStartupState(state: ProviderStartupResolutionState): boolean {

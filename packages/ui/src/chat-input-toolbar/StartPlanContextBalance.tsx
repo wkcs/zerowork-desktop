@@ -1,3 +1,4 @@
+import { MVP5_HIDE_ZAI_PRODUCT_ENTRIES } from "@/lib/mvp5ProductSurface.js";
 import { CodingPlanEntryButton } from "@/settings/CodingPlanEntryButton.js";
 import { Loader2Icon, RocketIcon } from "lucide-react";
 import type { UsageEntitlementSnapshot, UsageQuotaLimit } from "@zcode/shared";
@@ -64,6 +65,9 @@ function getVisibleStartPlanLimits(snapshot: UsageEntitlementSnapshot | null): U
 }
 
 export function hasChatStartPlanBalance(config: ChatStartPlanBalanceConfig | undefined): boolean {
+  if (MVP5_HIDE_ZAI_PRODUCT_ENTRIES) {
+    return false;
+  }
   if (!config) {
     return false;
   }
@@ -119,6 +123,9 @@ export function ChatStartPlanBalancePanel({
   locale: string;
   separated?: boolean;
 }) {
+  if (MVP5_HIDE_ZAI_PRODUCT_ENTRIES) {
+    return null;
+  }
   const limits = getVisibleStartPlanLimits(config.snapshot);
 
   if (!config.loading && limits.length === 0) {

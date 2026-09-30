@@ -36,6 +36,7 @@ import {
   buildVisibleFamilyConnectionItems,
   resolveCodingPlanEntitlementState,
 } from "@/settings/model-provider-section/providerFamilyConnectionVisibility.js";
+import { MVP5_HIDE_ZAI_PRODUCT_ENTRIES } from "@/lib/mvp5ProductSurface.js";
 
 interface PresetProviderWithConfig extends PresetProviderSpec {
   provider: ProviderSettingsFormProvider | null;
@@ -91,8 +92,12 @@ export function useModelProviderNavigation({
 
   const codingPlanItems = useMemo(
     () =>
-      CODING_PLAN_PROVIDER_SPECS.filter((spec) =>
-        shouldShowCodingPlanForProviderFamilyDomain(spec.oauthProviderId, providerFamilyDomain),
+      // MVP-5 卡2：设置页不展示 Coding Plan / Start Plan 产品面。
+      (MVP5_HIDE_ZAI_PRODUCT_ENTRIES
+        ? []
+        : CODING_PLAN_PROVIDER_SPECS.filter((spec) =>
+            shouldShowCodingPlanForProviderFamilyDomain(spec.oauthProviderId, providerFamilyDomain),
+          )
       ).map((spec) => {
         const provider = modelProviders.find((item) => item.providerId === spec.id) ?? null;
         const accountEntitled = entitledAccountProviderIds.has(spec.id);
@@ -178,12 +183,14 @@ export function useModelProviderNavigation({
   );
 
   const navigationGroups = useMemo<ModelProviderNavGroup[]>(() => {
+    // MVP-5 卡2：隐藏 Z.ai / BigModel Start Plan 预设入口。
+    const visiblePresetProviders = MVP5_HIDE_ZAI_PRODUCT_ENTRIES ? [] : presetProviders;
     const groups: ModelProviderNavGroup[] = [
       {
         id: "preset",
         title: intl.formatMessage({ id: "settings.modelProvider.presetTitle" }),
         items: [
-          ...presetProviders.map(({ id, displayName, provider }) => {
+          ...visiblePresetProviders.map(({ id, displayName, provider }) => {
             const statusProvider = resolvePresetFamilyStatusProvider({
               presetId: id,
               provider,

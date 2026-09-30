@@ -1,3 +1,4 @@
+import { MVP5_HIDE_ZAI_PRODUCT_ENTRIES } from "@/lib/mvp5ProductSurface.js";
 /* eslint-disable max-lines -- Coding Plan 用量视图集中维护来源选择、额度投影和重置入口；本阶段只迁移 Account Access，不拆分既有 UI 结构。 */
 import type {
   UsageEntitlementSnapshot,
@@ -230,6 +231,9 @@ export function CodingPlanUsageRemainingPanel({
   selectedProviderId?: SidebarUsageCodingPlanSourceId;
 }) {
   const { intl, locale } = useZCodeIntl();
+  if (MVP5_HIDE_ZAI_PRODUCT_ENTRIES) {
+    return null;
+  }
   const state = useMemo(
     () =>
       resolveCodingPlanUsageRemainingState({
