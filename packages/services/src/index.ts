@@ -310,13 +310,19 @@ export type {
 } from "@zcode/shared";
 export { IClientConfigService } from "./client-config/clientConfig.js";
 
-// MVP-1 card 3: Host SessionPort facade (wraps zerocode-acp; UI must not speak ACP)
+// MVP-1 card 3 + MVP-2 card A: Host SessionPort facade (default chat runtime = ZeroCode ACP)
 export {
   IZeroCodeSessionPortService,
   createZeroCodeSessionPortService,
+  resolveHostDefaultAgentRuntime,
+  isZeroCodeAcpDefaultAgentRuntime,
+  shouldRegisterZeroCodeSessionPortService,
+  ZEROWORK_DEFAULT_AGENT_RUNTIME_ENV,
+  ZEROWORK_MVP1_SESSION_PORT_ENV,
   type ZeroCodeSessionPortOpenInput,
   type ZeroCodeSessionPortPermissionMode,
   type CreateZeroCodeSessionPortServiceOptions,
+  type HostDefaultAgentRuntimeKind,
   type SessionUiEvent,
   type SessionHandle,
   type PromptInput,

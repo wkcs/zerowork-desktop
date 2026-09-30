@@ -398,6 +398,36 @@ export function resolveBundledGlmBinaryPath(): string | undefined {
   return resolveBundledZCodeAgentBinaryPath();
 }
 
+/**
+ * MVP-2 card A: bundled ZeroCode ACP agent binary (`resources/agent/zerocode`).
+ * Never resolves glm / zcode-cli — those stay on the legacy ZCODE_AGENT_RUNTIME path.
+ */
+export function resolveBundledZeroCodeBinPath(): string | undefined {
+  const binaryName = process.platform === "win32" ? "zerocode.exe" : "zerocode";
+  const candidates = [
+    isElectronAppPackaged() ? join(process.resourcesPath, "agent", binaryName) : null,
+    join(process.cwd(), "resources", "agent", binaryName),
+    join(process.cwd(), "packages", "desktop", "resources", "agent", binaryName),
+    join(import.meta.dirname, "../../resources/agent", binaryName),
+  ].filter((candidate): candidate is string => Boolean(candidate));
+  return candidates.find((candidate) => existsSync(candidate));
+}
+
+/**
+ * Resolve ZEROCODE_BIN for Host env: prefer explicit usable ZEROCODE_BIN, else bundled.
+ * Does not fall back to GLM_BINARY_PATH / zcode-cli.
+ */
+function resolveHostZeroCodeBinEnv(
+  hostProcessLocalEnv: Record<string, string>,
+): string | undefined {
+  const explicit =
+    process.env.ZEROCODE_BIN?.trim() || hostProcessLocalEnv.ZEROCODE_BIN?.trim() || "";
+  if (explicit && existsSync(explicit)) {
+    return explicit;
+  }
+  return resolveBundledZeroCodeBinPath();
+}
+
 function resolveHostProcessBinaryEnv(
   envVar: string,
   hostProcessLocalEnv: Record<string, string>,
@@ -476,6 +506,8 @@ export function buildHostProcessEnv(hostProcessLocalEnv: Record<string, string>)
     hostProcessLocalEnv,
     larkCliBinaryPath,
   );
+  // MVP-2 card A default ACP path: ZEROCODE_BIN → bundled resources/agent/zerocode (never glm).
+  const resolvedZeroCodeBinPath = resolveHostZeroCodeBinEnv(hostProcessLocalEnv);
   const dataBaseDir = getDataBaseDir();
   const rawInheritedEnv = {
     ...hostProcessLocalEnv,
@@ -560,5 +592,6 @@ export function buildHostProcessEnv(hostProcessLocalEnv: Record<string, string>)
       : {}),
     ...(resolvedGlmBinaryPath ? { GLM_BINARY_PATH: resolvedGlmBinaryPath } : {}),
     ...(resolvedLarkCliBinaryPath ? { ZCODE_LARK_CLI_BINARY: resolvedLarkCliBinaryPath } : {}),
+    ...(resolvedZeroCodeBinPath ? { ZEROCODE_BIN: resolvedZeroCodeBinPath } : {}),
   };
 }

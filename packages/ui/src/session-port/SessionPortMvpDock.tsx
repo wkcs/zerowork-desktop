@@ -1,10 +1,11 @@
 /**
- * Floating MVP-1 SessionPort dock — parallel to V4 chat; does not replace it.
- * Shown on desktop when Host exposes zerocodeSessionPortService.
+ * Floating SessionPort dock — MVP-2 opt-in debug overlay (default OFF).
+ * Main chat bubbles use SessionPort via V4ChatPane; this dock is no longer default.
  */
 
 import type { CSSProperties } from "react";
 import { SessionPortChatPanel } from "./SessionPortChatPanel.js";
+import { isSessionPortDockEnabled } from "./sessionPortGates.js";
 
 const dockStyle: CSSProperties = {
   position: "fixed",
@@ -15,38 +16,17 @@ const dockStyle: CSSProperties = {
   boxShadow: "0 8px 24px rgba(0,0,0,0.18)",
 };
 
-/**
- * Env gate: set ZEROWORK_MVP1_SESSION_PORT=0 to hide.
- * In renderer, prefer import.meta / process.env baked by bundler; also allow
- * window.__ZEROWORK_MVP1_SESSION_PORT__ = "0".
- */
-function isMvpSessionPortEnabled(): boolean {
-  try {
-    const w = globalThis as { __ZEROWORK_MVP1_SESSION_PORT__?: string };
-    if (w.__ZEROWORK_MVP1_SESSION_PORT__ === "0") return false;
-  } catch {
-    // ignore
-  }
-  try {
-    const env = (import.meta as { env?: Record<string, string | undefined> }).env;
-    if (env?.ZEROWORK_MVP1_SESSION_PORT === "0") return false;
-  } catch {
-    // ignore
-  }
-  return true;
-}
-
 export function SessionPortMvpDock(props: {
   workspacePath: string | null | undefined;
   isDesktop?: boolean;
 }) {
   if (!props.isDesktop) return null;
   if (!props.workspacePath?.trim()) return null;
-  if (!isMvpSessionPortEnabled()) return null;
+  if (!isSessionPortDockEnabled()) return null;
 
   return (
     <div style={dockStyle} data-testid="zerocode-session-port-dock">
-      <SessionPortChatPanel workspacePath={props.workspacePath} />
+      <SessionPortChatPanel workspacePath={props.workspacePath} variant="dock" />
     </div>
   );
 }

@@ -13,3 +13,13 @@ export {
   createZeroCodeSessionPortService,
   type CreateZeroCodeSessionPortServiceOptions,
 } from "./zerocodeSessionPortService.js";
+
+export {
+  resolveHostDefaultAgentRuntime,
+  isZeroCodeAcpDefaultAgentRuntime,
+  shouldRegisterZeroCodeSessionPortService,
+  ZEROWORK_DEFAULT_AGENT_RUNTIME_ENV,
+  ZEROWORK_MVP1_SESSION_PORT_ENV,
+  type HostDefaultAgentRuntimeKind,
+  type HostDefaultAgentRuntimeEnv,
+} from "./defaultAgentRuntime.js";

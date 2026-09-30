@@ -1,8 +1,10 @@
 /**
  * ZeroCode ACP Host adapter (SessionPort).
  *
- * MVP-1 card 2: skeleton only — not wired into default Host runtime.
- * See ./README.md for seam notes vs zcodeAgentProcessManager.
+ * MVP-2 card A: default Host chat runtime is ZeroCodeAcpAdapter via
+ * `IZeroCodeSessionPortService` (see zerocode-session-port/defaultAgentRuntime.ts).
+ * This package still does not speak to Renderer directly — UI uses the Host facade.
+ * See ./README.md for seam notes vs legacy zcodeAgentProcessManager.
  */
 
 export type {

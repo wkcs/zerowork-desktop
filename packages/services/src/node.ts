@@ -299,6 +299,7 @@ import { IZCodeAgentService } from "./zcode-agent/zcodeAgent.js";
 import {
   IZeroCodeSessionPortService,
   createZeroCodeSessionPortService,
+  shouldRegisterZeroCodeSessionPortService,
 } from "./zerocode-session-port/index.js";
 import type { CuaOperationStateReporter } from "./zcode-agent/cuaOperationTurnTracker.js";
 import { IZCodeSessionService } from "./zcode-session/zcodeSession.js";
@@ -2601,15 +2602,19 @@ export function createLocalServices(options: {
       }),
     )
     .register(IPromptAttachmentTransferService, createLocalPromptAttachmentTransferService());
-  const zerocodeSessionPortLog = createServiceLogger("zerocode-session-port");
-  services.register(
-    IZeroCodeSessionPortService,
-    createZeroCodeSessionPortService({
-      log: (line) => {
-        zerocodeSessionPortLog.info(undefined, line);
-      },
-    }),
-  );
+  // MVP-2 card A: SessionPort / ZeroCodeAcpAdapter is the default chat runtime.
+  // Opt-out with ZEROWORK_MVP1_SESSION_PORT=0 or ZEROWORK_DEFAULT_AGENT_RUNTIME=zcode-cli.
+  if (shouldRegisterZeroCodeSessionPortService()) {
+    const zerocodeSessionPortLog = createServiceLogger("zerocode-session-port");
+    services.register(
+      IZeroCodeSessionPortService,
+      createZeroCodeSessionPortService({
+        log: (line) => {
+          zerocodeSessionPortLog.info(undefined, line);
+        },
+      }),
+    );
+  }
 
   // 即使初始配置关闭也必须登记 lifecycle disposer：terminal fence 需要早于任意延迟 setting/acquire
   // 恢复，不能把"当前还没有 Helper"误当成"不需要生命周期所有者"。dispose 时串行 stop host。
