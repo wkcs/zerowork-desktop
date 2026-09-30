@@ -1,5 +1,10 @@
 /**
  * Host service: owns ZeroCodeAcpAdapter and projects SessionUiEvent over RPC.
+ *
+ * MVP-2 card A: this SessionPort facade is the default chat / new-session path
+ * when `resolveHostDefaultAgentRuntime()` returns `zerocode-acp` (product default).
+ * Renderer must not speak raw ACP; openSession keeps permissionMode ask/auto only
+ * (no `--always-approve` unless a future Host API explicitly opts into yolo).
  */
 
 import { Emitter, type Event } from "@zcode/rpc";

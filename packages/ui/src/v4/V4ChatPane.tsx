@@ -1,4 +1,4 @@
-import type { ReactNode } from "react";
+import type { CSSProperties, ReactNode } from "react";
 import type {
   GitChangeSourceId,
   GitRepositorySummary,
@@ -23,6 +23,8 @@ import type {
 } from "@/lib/workspaceSidePane.js";
 import { V4ConversationProvider } from "@/v4/V4ConversationContext.js";
 import { SessionPane } from "@/v4/SessionPane.js";
+import { SessionPortChatPanel } from "@/session-port/SessionPortChatPanel.js";
+import { shouldUseSessionPortMainChat } from "@/session-port/sessionPortGates.js";
 import type { SessionOpenTrigger } from "@/lib/sessionOpenArmsTelemetry.js";
 import type {
   ChatSearchResultHighlightRequest,
@@ -78,9 +80,20 @@ interface V4ChatPaneProps {
   onSearchResultHighlightDone?: (requestId: number) => void;
 }
 
+const sessionPortMainWrapStyle: CSSProperties = {
+  display: "flex",
+  flexDirection: "column",
+  flex: 1,
+  minHeight: "100%",
+  height: "100%",
+  width: "100%",
+  boxSizing: "border-box",
+};
+
 /**
  * 竖切聊天区：替换 ChatView 的最小入口。
- * 外层按 workspace 包 V4ConversationProvider；单 pane paneId 固定 workspace-main。
+ * MVP-2：Desktop 默认走 SessionPort 主面板；
+ * 非 Desktop 或 ZEROWORK_V4_SESSION_PANE=1 仍用 V4 SessionPane。
  */
 export function V4ChatPane({
   workspacePath,
@@ -124,6 +137,17 @@ export function V4ChatPane({
   searchResultHighlightRequest,
   onSearchResultHighlightDone,
 }: V4ChatPaneProps) {
+  if (shouldUseSessionPortMainChat(isDesktop)) {
+    return (
+      <div
+        data-testid="zerocode-session-port-main"
+        style={sessionPortMainWrapStyle}
+      >
+        <SessionPortChatPanel workspacePath={workspacePath} variant="main" />
+      </div>
+    );
+  }
+
   return (
     <V4ConversationProvider workspacePath={workspacePath} workspaceIdentity={workspaceIdentity}>
       <SessionPane

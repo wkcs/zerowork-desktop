@@ -1,3 +1,11 @@
 export { useSessionPortChat, type SessionPortBubble, type SessionPortChatState } from "./useSessionPortChat.js";
-export { SessionPortChatPanel } from "./SessionPortChatPanel.js";
+export {
+  SessionPortChatPanel,
+  type SessionPortChatPanelVariant,
+} from "./SessionPortChatPanel.js";
 export { SessionPortMvpDock } from "./SessionPortMvpDock.js";
+export {
+  isSessionPortDockEnabled,
+  shouldForceV4SessionPane,
+  shouldUseSessionPortMainChat,
+} from "./sessionPortGates.js";

@@ -9,23 +9,28 @@ MVP-1 **card 2** skeleton: Host ↔ `zerocode agent … stdio` (ACP JSON-RPC).
 - `buildZeroCodeAgentSpawnSpec`: `agent [--model] [--always-approve?] stdio`
 - `ZeroCodeAcpAdapter`: lifecycle state machine + stdio JSON-RPC skeleton
 
-## What this is intentionally NOT (yet)
+## Default Host runtime (MVP-2 card A)
 
-- **Not** wired into UI hooks / Renderer (card 3)
-- **Not** replacing `ZCODE_AGENT_RUNTIME.spawnArgs` (`["app-server","--stdio"]`)
-- **Not** swapping `zcodeAgentProcessManager` default spawn
-- **Not** a claim that the dialogue loop works end-to-end
+- **Default** new-session / chat path: Host `IZeroCodeSessionPortService` → `ZeroCodeAcpAdapter` (this package).
+- Selection lives in `packages/services/src/zerocode-session-port/defaultAgentRuntime.ts`.
+- Opt-out: `ZEROWORK_MVP1_SESSION_PORT=0` or `ZEROWORK_DEFAULT_AGENT_RUNTIME=zcode-cli`.
+- Binary resolve stays `ZEROCODE_BIN` → bundled `resources/agent/zerocode` → `PATH` (**never** silent zcode-cli / glm fallback).
+- `--always-approve` stays **OFF** unless `permissionMode === "yolo"` (Host facade defaults to ask/auto only).
 
-## When to replace the old seam
+## What this is intentionally NOT
 
-| Old seam | Path | Replacement |
+- **Not** a claim that the dialogue loop / paid model stream works end-to-end without BYOK
+- **Not** deleting legacy `ZCODE_AGENT_RUNTIME` / `zcodeAgentProcessManager` (V4 escape / plugins may still use it)
+- **Not** letting Renderer speak raw ACP (always go through SessionPort Host facade)
+
+## Seam vs legacy zcode-cli
+
+| Old seam | Path | Replacement (default) |
 |----------|------|-------------|
 | Spawn args | `packages/shared/src/zcode-agent-runtime.ts` → `spawnArgs: ["app-server","--stdio"]` | `buildZeroCodeAgentSpawnSpec` → `["agent", …, "stdio"]` |
 | Binary resolve | `findZCodeAgentRuntimeBinary` / `GLM_BINARY_PATH` / `resources/glm` | `resolveZeroCodeBin` / `ZEROCODE_BIN` / `resources/agent/zerocode` |
 | Process manager | `zcodeAgentProcessManager.ts` + `ZCodeStdioTransport` (zcode-protocol) | `ZeroCodeAcpAdapter` + `JsonRpcStdioTransport` (ACP) |
 | V4 harness sketch | `/workspace/harness-protocol/adapters/grok-build/` | This package is **ACP SessionPort**, not V4 |
-
-Recommended cutover (later cards): inject `ZeroCodeAcpAdapter` behind a Host facade / `IPlatformService` session API; keep old zcode-agent path until card 1 ships a runnable `zerocode` binary and card 3 wires UI.
 
 ## Permission flags
 
