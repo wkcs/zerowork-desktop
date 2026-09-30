@@ -1,11 +1,10 @@
 import type { AppSettings } from "@zcode/shared";
 
 /**
- * MVP-7: Welcome no longer collects a ZeroCode API key.
- * Skip/continue still marks provider-family migration done.
+ * MVP-8: Welcome continue-into-shell settings helper (no API key form).
  */
 
-export function buildLoginApiKeySkipSettings(now: number): Pick<
+export function buildWelcomeContinueSettings(now: number): Pick<
   AppSettings,
   "providerFamilyDomainUpdatedAt" | "providerFamilyDomainMigrated"
 > {

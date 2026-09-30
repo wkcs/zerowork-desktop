@@ -882,13 +882,6 @@ const enUS: Record<string, string> = {
   "login.expired.action": "Sign in again",
   "login.expired.restart": "Confirm and restart",
   "login.useApiKey": "Use API key",
-  "login.apiKey.title": "ZeroCode API Key",
-  "login.apiKey.placeholder": "Enter ZeroCode API key",
-  "login.apiKey.cancel": "Cancel",
-  "login.apiKey.continue": "Continue",
-  "login.apiKey.emptyError": "Enter a ZeroCode API key.",
-  "login.apiKey.saveError": "Failed to save API key: {error}",
-  "login.apiKey.skipError": "Failed to skip API key setup: {error}",
   "login.skip": "Skip for now",
   "settings.onboarding": "Onboard",
   "settings.onboardingDescription":
