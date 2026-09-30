@@ -132,7 +132,7 @@ export function createProviderSettingsService(
     getView: async () => {
       try {
         await ensureReady();
-        return facade.getView();
+        return await Promise.resolve(facade.getView());
       } catch (error) {
         // ZeroWork 产品模式：旧 provider-settings 非产品路径；缺 Built-in Release 时返回空视图，
         // 避免启动期 RPC FAIL。请用户走 ZeroCode 配置（~/.zerowork/config.toml）。
@@ -148,7 +148,8 @@ export function createProviderSettingsService(
     refresh: async (reason) => {
       try {
         await ensureReady();
-        return facade.refresh(reason);
+        // Must await: returning a rejecting Promise skips this try/catch and still RPC FAIL.
+        return await facade.refresh(reason);
       } catch (error) {
         if (MVP6_STUB_ZAI_PRODUCT_SERVICES && isLegacyProviderSurfaceSoftFailure(error)) {
           log.debug(undefined, "provider-settings.refresh fail-soft (use ZeroCode config)", {

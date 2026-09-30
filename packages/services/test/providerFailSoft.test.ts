@@ -51,3 +51,20 @@ test("isLegacyProviderSurfaceSoftFailure covers remote client-config invalid res
   );
   assert.equal(isLegacyProviderSurfaceSoftFailure(new Error("disk full")), false);
 });
+
+test("provider-settings.refresh fail-soft catches rejecting facade.refresh", async () => {
+  const { createProviderSettingsService } = await import(
+    "../src/model-provider/providerFacadeServices.js"
+  );
+  const facade = {
+    onDidChange: () => () => {},
+    getView: () => ({ revision: 0, providerTemplates: [], providerOrder: [], providers: [] }),
+    refresh: async () => {
+      throw new Error("ZCode Built-in client-config: invalid response");
+    },
+  };
+  const service = createProviderSettingsService(facade as never);
+  const view = await service.refresh("unit-test");
+  assert.deepEqual(view.providers, []);
+  assert.equal(view.revision, 0);
+});
