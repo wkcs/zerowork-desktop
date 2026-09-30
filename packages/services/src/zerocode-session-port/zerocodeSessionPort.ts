@@ -1,0 +1,59 @@
+/**
+ * Host-facing ZeroCode SessionPort RPC surface (MVP-1 card 3).
+ *
+ * Wraps ZeroCodeAcpAdapter behind a ProxyChannel-friendly service so Renderer
+ * talks Host only — never raw ACP / JSON-RPC.
+ *
+ * Lives OUTSIDE packages/services/src/zerocode-acp/ (card 2 freeze).
+ */
+
+import type { Event } from "@zcode/rpc";
+import { createServiceDescriptor } from "../descriptors.js";
+import type {
+  AgentStatus,
+  OpenSessionInput,
+  PromptInput,
+  PromptResult,
+  SessionHandle,
+  SessionUiEvent,
+} from "../zerocode-acp/types.js";
+
+/**
+ * Keep in sync with `ServiceChannels.ZeroCodeSessionPort` in
+ * `packages/shared/src/channels.ts`.
+ */
+export const ZEROCODE_SESSION_PORT_CHANNEL = "zerocode-session-port";
+
+/** Card 3 permission: ask | auto only — never yolo / --always-approve by default. */
+export type ZeroCodeSessionPortPermissionMode = "ask" | "auto";
+
+export type ZeroCodeSessionPortOpenInput = Omit<OpenSessionInput, "permissionMode"> & {
+  permissionMode?: ZeroCodeSessionPortPermissionMode;
+};
+
+export type {
+  AgentStatus,
+  PromptInput,
+  PromptResult,
+  SessionHandle,
+  SessionUiEvent,
+};
+
+/**
+ * Thin Host RPC facade over SessionPort.
+ * Methods are sync-or-async on Host; ProxyChannel always awaits on Renderer.
+ */
+export interface IZeroCodeSessionPortService {
+  ensureReady(): Promise<void>;
+  openSession(input: ZeroCodeSessionPortOpenInput): Promise<SessionHandle>;
+  prompt(sessionId: string, input: PromptInput): Promise<PromptResult>;
+  cancel(sessionId: string): Promise<void>;
+  getStatus(): AgentStatus;
+  getLastError(): string | null;
+  /** Per-session projected UI events (not raw ACP). */
+  onDynamicSessionUiEvent(sessionId: string): Event<SessionUiEvent>;
+}
+
+export const IZeroCodeSessionPortService = createServiceDescriptor<IZeroCodeSessionPortService>(
+  ZEROCODE_SESSION_PORT_CHANNEL,
+);

@@ -309,3 +309,17 @@ export type {
   FeedbackTicketType,
 } from "@zcode/shared";
 export { IClientConfigService } from "./client-config/clientConfig.js";
+
+// MVP-1 card 3: Host SessionPort facade (wraps zerocode-acp; UI must not speak ACP)
+export {
+  IZeroCodeSessionPortService,
+  createZeroCodeSessionPortService,
+  type ZeroCodeSessionPortOpenInput,
+  type ZeroCodeSessionPortPermissionMode,
+  type CreateZeroCodeSessionPortServiceOptions,
+  type SessionUiEvent,
+  type SessionHandle,
+  type PromptInput,
+  type PromptResult,
+  type AgentStatus as ZeroCodeAgentStatus,
+} from "./zerocode-session-port/index.js";
