@@ -38,6 +38,21 @@ MVP-1 **card 2** skeleton: Host ↔ `zerocode agent … stdio` (ACP JSON-RPC).
 - **`permissionMode === "yolo"`**: process may get `--always-approve`; `session/new` also gets `_meta.yoloMode`.
 - **`ask` / `auto`**: no CLI flag; `auto` → `_meta.autoMode` only.
 
+
+## Packaging (MVP-2 card D)
+
+Bundled layout: `resources/agent/zerocode[.exe]` via electron-builder **extraResources** (when the file or `ZEROCODE_BIN` exists at pack time). Binary is **not** committed.
+
+| Step | Command / note |
+|------|----------------|
+| Stage | `pnpm --filter @zcode/desktop prepare:zerocode-agent` (or set `ZEROCODE_BIN` then `prepare:runtime-assets`) |
+| Drop manually | copy into `packages/desktop/resources/agent/` |
+| Pack | `pnpm bundle:desktop -- --os … --arch …` |
+| Resolve | `ZEROCODE_BIN` → bundled `resources/agent/zerocode` → `PATH` (**never** zcode-cli) |
+| Flags | default **no** `--always-approve` |
+
+Details (Chinese): `packages/desktop/resources/agent/README.md`.
+
 ## Local checks
 
 ```bash

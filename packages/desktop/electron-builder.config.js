@@ -297,6 +297,30 @@ function resolvePackagedResourcesDir(context) {
   return resolve(context.appOutDir, "resources");
 }
 
+
+/**
+ * MVP-2 卡 D：随包 ZeroCode agent。
+ * 二进制不入库；打包时若已 stage 或 ZEROCODE_BIN 可用则打进 resources/agent/。
+ * 缺失时跳过，不阻断壳包（骨架）。
+ */
+function resolveZeroCodeAgentExtraResource() {
+  const binaryName = targetPlatform.os === "win32" ? "zerocode.exe" : "zerocode";
+  const stagedPath = resolve(desktopPackageRoot, "resources/agent", binaryName);
+  if (existsSync(stagedPath)) {
+    return { from: stagedPath, to: `agent/${binaryName}` };
+  }
+  const envBin = process.env.ZEROCODE_BIN?.trim();
+  if (envBin && existsSync(envBin)) {
+    return { from: resolve(envBin), to: `agent/${binaryName}` };
+  }
+  console.warn(
+    `[electron-builder.config] skip ZeroCode agent extraResources: no staged resources/agent/${binaryName} and no usable ZEROCODE_BIN`,
+  );
+  return null;
+}
+
+const zeroCodeAgentExtraResource = resolveZeroCodeAgentExtraResource();
+
 function normalizeAsarEntry(entry) {
   return entry.trim().replaceAll("\\", "/");
 }
@@ -427,6 +451,37 @@ async function stripPackagedSourcemapReferences(context) {
         runAsarCommand,
       }),
   });
+}
+
+
+function stageZeroCodeAgentIntoPackagedResources(context) {
+  const binaryName =
+    context.electronPlatformName === "win32" ? "zerocode.exe" : "zerocode";
+  const resourcesDir = resolvePackagedResourcesDir(context);
+  const targetPath = resolve(resourcesDir, "agent", binaryName);
+  if (existsSync(targetPath)) {
+    console.log(`[afterPack] ZeroCode agent already packaged: ${targetPath}`);
+    return;
+  }
+
+  const stagedPath = resolve(desktopPackageRoot, "resources/agent", binaryName);
+  const envBin = process.env.ZEROCODE_BIN?.trim();
+  const sourcePath = existsSync(stagedPath)
+    ? stagedPath
+    : envBin && existsSync(envBin)
+      ? resolve(envBin)
+      : null;
+
+  if (!sourcePath) {
+    console.warn(
+      `[afterPack] skip ZeroCode agent: no resources/agent/${binaryName} and no usable ZEROCODE_BIN`,
+    );
+    return;
+  }
+
+  mkdirSync(dirname(targetPath), { recursive: true });
+  cpSync(sourcePath, targetPath);
+  console.log(`[afterPack] staged ZeroCode agent: ${sourcePath} → ${targetPath}`);
 }
 
 function assertPackagedNativeResourcePolicy(context) {
@@ -562,6 +617,9 @@ export default {
     runTimedSync("afterPack:assertPackagedNodePtyPrebuild", () =>
       assertPackagedNodePtyPrebuild(context),
     );
+    runTimedSync("afterPack:stageZeroCodeAgentIntoPackagedResources", () =>
+      stageZeroCodeAgentIntoPackagedResources(context),
+    );
     if (actualWindowsTarget) {
       await runTimedAsync("afterPack:writeWindowsInstallManifest", () =>
         writeWindowsInstallManifest(context),
@@ -570,6 +628,8 @@ export default {
   },
   extraResources: [
     { from: resolve(workspaceRoot, noticesFileName), to: noticesFileName },
+    // MVP-2 卡 D：条件随包 ZeroCode agent（文件存在或 ZEROCODE_BIN 可用时）。
+    ...(zeroCodeAgentExtraResource ? [zeroCodeAgentExtraResource] : []),
     ...(targetPlatform.os === "darwin"
       ? [
           {

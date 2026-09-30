@@ -48,6 +48,24 @@ function runTimedPnpmScript(scriptName) {
 // MVP-0 不打包远端运行时和上游 agent 资产，避免引入 apps/zcode-cli 产品 harness。
 console.log("[prepare:runtime-assets] skip prepare:remote-assets for ZeroWork MVP-0");
 
+
+// MVP-2 卡 D：可选 stage ZeroCode agent（ZEROCODE_BIN 或已放置的 resources/agent）。
+// 缺失不失败，壳包仍可出。
+console.log("[ci][timer] prepare-runtime-assets:stage-zerocode-agent start");
+{
+  const stageStart = Date.now();
+  try {
+    runCommand(process.execPath, [resolve(scriptDir, "stage-zerocode-agent.mjs")], {
+      cwd: desktopRoot,
+      env: process.env,
+    });
+  } finally {
+    console.log(
+      `[ci][timer] prepare-runtime-assets:stage-zerocode-agent end duration_ms=${Date.now() - stageStart}`,
+    );
+  }
+}
+
 for (const scriptName of localRuntimeScripts) {
   runTimedPnpmScript(scriptName);
 }
