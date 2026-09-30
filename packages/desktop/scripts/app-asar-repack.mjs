@@ -47,15 +47,21 @@ export async function replaceAppAsarFromStaging({
       }),
     );
 
-    if (!(await pathExists(candidateAsarPath)) || !(await pathExists(candidateUnpackedPath))) {
+    if (!(await pathExists(candidateAsarPath))) {
       // CI 的 TMPDIR 位于隐藏目录 `.tmp`。旧 glob 含 `**/`，@electron/asar 用绝对路径
       // 匹配时不会跨过隐藏目录，导致 native 被写回 asar，同时遗留旧 unpacked 形成物理双份。
-      throw new Error(`重打包结果缺少 app.asar 或 app.asar.unpacked: ${candidateAsarPath}`);
+      throw new Error(`重打包结果缺少 app.asar: ${candidateAsarPath}`);
     }
 
-    // 先完整生成候选文件，再替换旧 archive 和 sidecar；不会把上一次打包的跨平台 native 留在 unpacked。
-    await rm(unpackedPath, { force: true, recursive: true });
-    await rename(candidateUnpackedPath, unpackedPath);
+    // @electron/asar 在没有任何文件命中 --unpack / --unpack-dir 时不会创建 .unpacked。
+    // 这在「仅注入 JS 运行时依赖、staging 未带回 native」时是正常结果；此时保留既有
+    // app.asar.unpacked，避免 afterPack 因 sidecar 缺失整包失败，也避免误删已有 native。
+    const hasCandidateUnpacked = await pathExists(candidateUnpackedPath);
+    if (hasCandidateUnpacked) {
+      await rm(unpackedPath, { force: true, recursive: true });
+      await rename(candidateUnpackedPath, unpackedPath);
+    }
+
     await rm(appAsarPath, { force: true });
     await rename(candidateAsarPath, appAsarPath);
   } finally {

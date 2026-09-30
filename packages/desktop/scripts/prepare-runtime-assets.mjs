@@ -68,5 +68,14 @@ console.log("[ci][timer] prepare-runtime-assets:stage-zerocode-agent start");
 }
 
 for (const scriptName of localRuntimeScripts) {
-  runTimedPnpmScript(scriptName);
+  try {
+    runTimedPnpmScript(scriptName);
+  } catch (error) {
+    // MVP-6 卡1：native-search 归档不在本 checkout（apps/zcode-cli/dependencies 缺失）时，
+    // 允许 prepare 软跳过；electron-builder extraResources 已按目录存在性过滤，不会因缺工具阻断出包。
+    // 其它 prepare 脚本仍 fail-closed。
+    if (scriptName !== "prepare:native-search") throw error;
+    const reason = error instanceof Error ? error.message : String(error);
+    console.warn(`[prepare:runtime-assets] soft-skip ${scriptName}: ${reason}`);
+  }
 }
