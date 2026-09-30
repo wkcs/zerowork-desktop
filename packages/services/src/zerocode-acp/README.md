@@ -39,15 +39,16 @@ MVP-1 **card 2** skeleton: Host ↔ `zerocode agent … stdio` (ACP JSON-RPC).
 - **`ask` / `auto`**: no CLI flag; `auto` → `_meta.autoMode` only.
 
 
-## Packaging (MVP-2 card D)
+## Packaging (MVP-4 card 1)
 
-Bundled layout: `resources/agent/zerocode[.exe]` via electron-builder **extraResources** (when the file or `ZEROCODE_BIN` exists at pack time). Binary is **not** committed.
+Bundled layout: `resources/agent/zerocode[.exe]` via electron-builder **extraResources**. Binary is **not** committed.
 
 | Step | Command / note |
 |------|----------------|
-| Stage | `pnpm --filter @zcode/desktop prepare:zerocode-agent` (or set `ZEROCODE_BIN` then `prepare:runtime-assets`) |
+| Stage (dev, soft-skip) | `pnpm --filter @zcode/desktop prepare:zerocode-agent` |
+| Stage (pack, fail-closed) | `node scripts/stage-zerocode-agent.mjs --require` (bundle.mjs runs this before electron-builder) |
 | Drop manually | copy into `packages/desktop/resources/agent/` |
-| Pack | `pnpm bundle:desktop -- --os … --arch …` |
+| Pack | `pnpm bundle:desktop -- --os … --arch …` — **fails** if agent cannot be staged |
 | Resolve | `ZEROCODE_BIN` → bundled `resources/agent/zerocode` → `PATH` (**never** zcode-cli) |
 | Flags | default **no** `--always-approve` |
 

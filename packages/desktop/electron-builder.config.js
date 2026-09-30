@@ -299,9 +299,9 @@ function resolvePackagedResourcesDir(context) {
 
 
 /**
- * MVP-2 卡 D：随包 ZeroCode agent。
- * 二进制不入库；打包时若已 stage 或 ZEROCODE_BIN 可用则打进 resources/agent/。
- * 缺失时跳过，不阻断壳包（骨架）。
+ * MVP-4 卡 1：随包 ZeroCode agent（fail-closed）。
+ * 二进制不入库；打包时必须已 stage 或 ZEROCODE_BIN 可用，否则抛错阻断出包。
+ * 开发态 soft-skip 仅留给 stage-zerocode-agent.mjs 默认模式 / prepare-runtime-assets。
  */
 function resolveZeroCodeAgentExtraResource() {
   const binaryName = targetPlatform.os === "win32" ? "zerocode.exe" : "zerocode";
@@ -313,10 +313,9 @@ function resolveZeroCodeAgentExtraResource() {
   if (envBin && existsSync(envBin)) {
     return { from: resolve(envBin), to: `agent/${binaryName}` };
   }
-  console.warn(
-    `[electron-builder.config] skip ZeroCode agent extraResources: no staged resources/agent/${binaryName} and no usable ZEROCODE_BIN`,
+  throw new Error(
+    `[electron-builder.config] ZeroCode agent required for pack: no staged resources/agent/${binaryName} and no usable ZEROCODE_BIN. Set ZEROCODE_BIN or run prepare:zerocode-agent before bundle.`,
   );
-  return null;
 }
 
 const zeroCodeAgentExtraResource = resolveZeroCodeAgentExtraResource();
@@ -473,10 +472,9 @@ function stageZeroCodeAgentIntoPackagedResources(context) {
       : null;
 
   if (!sourcePath) {
-    console.warn(
-      `[afterPack] skip ZeroCode agent: no resources/agent/${binaryName} and no usable ZEROCODE_BIN`,
+    throw new Error(
+      `[afterPack] ZeroCode agent required for pack: no resources/agent/${binaryName} and no usable ZEROCODE_BIN`,
     );
-    return;
   }
 
   mkdirSync(dirname(targetPath), { recursive: true });
@@ -628,8 +626,8 @@ export default {
   },
   extraResources: [
     { from: resolve(workspaceRoot, noticesFileName), to: noticesFileName },
-    // MVP-2 卡 D：条件随包 ZeroCode agent（文件存在或 ZEROCODE_BIN 可用时）。
-    ...(zeroCodeAgentExtraResource ? [zeroCodeAgentExtraResource] : []),
+    // MVP-4 卡 1：强制随包 ZeroCode agent（resolveZeroCodeAgentExtraResource fail-closed）。
+    zeroCodeAgentExtraResource,
     ...(targetPlatform.os === "darwin"
       ? [
           {
