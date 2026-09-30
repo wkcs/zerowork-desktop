@@ -69,3 +69,7 @@ packages/desktop/.e2e-artifacts/
 packages/desktop/.e2e-cache/
 packages/desktop/.e2e-network-capture/
 .zcode-runtime/
+
+# MVP-2 卡 D：ZeroCode agent 二进制不入库（README 保留；打包机 stage / ZEROCODE_BIN）
+packages/desktop/resources/agent/zerocode
+packages/desktop/resources/agent/zerocode.exe
