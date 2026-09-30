@@ -22,7 +22,7 @@ const FILE_PATH_KEYS = new Set([
   "path",
   "paths",
   "file",
-  // ZCode Agent edit 权限常把目标文件放在 file_path/filePath，漏掉会让权限预览只剩标题。
+  // ZeroCode edit 权限常把目标文件放在 file_path/filePath，漏掉会让权限预览只剩标题。
   "file_path",
   "filepath",
   "files",

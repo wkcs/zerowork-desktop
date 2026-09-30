@@ -1,6 +1,7 @@
 import type { OAuthProviderId } from "@zcode/shared";
 import { createBigModelProviderRuntimeConfig } from "./providers/bigmodelProviderConfig.js";
 import { createZaiProviderRuntimeConfig } from "./providers/zaiProviderConfig.js";
+import { MVP6_STUB_ZAI_PRODUCT_SERVICES } from "../mvp6ProductSurface.js";
 
 /** Provider 运行时配置（仅 host process 可见） */
 export interface OAuthProviderRuntimeConfig {
@@ -28,6 +29,9 @@ export interface OAuthRuntimeConfig {
  * 注意：这里只能在 host process 使用，避免把敏感配置暴露给 renderer。
  */
 export function createOAuthRuntimeConfig(env: NodeJS.ProcessEnv = process.env): OAuthRuntimeConfig {
+  if (MVP6_STUB_ZAI_PRODUCT_SERVICES) {
+    return { providers: [] };
+  }
   return {
     providers: [createBigModelProviderRuntimeConfig(env), createZaiProviderRuntimeConfig(env)],
   };
