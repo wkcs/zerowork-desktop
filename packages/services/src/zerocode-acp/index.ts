@@ -26,6 +26,7 @@ export {
   resolveZeroCodeBin,
   resolveZeroCodeBinPath,
   ZeroCodeBinNotFoundError,
+  ZEROCODE_INCOMPLETE_INSTALL_MESSAGE,
   ZEROCODE_BIN_ENV,
   ZEROCODE_BIN_BASENAME,
   ZEROCODE_BUNDLED_RELATIVE,

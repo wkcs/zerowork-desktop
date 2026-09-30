@@ -1,7 +1,10 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { ZeroCodeAcpAdapter } from "../src/zerocode-acp/ZeroCodeAcpAdapter.js";
-import { ZeroCodeBinNotFoundError } from "../src/zerocode-acp/resolveZeroCodeBin.js";
+import {
+  ZeroCodeBinNotFoundError,
+  ZEROCODE_INCOMPLETE_INSTALL_MESSAGE,
+} from "../src/zerocode-acp/resolveZeroCodeBin.js";
 
 test("ensureReady fails into Failed when binary missing (no fake success)", async () => {
   const adapter = new ZeroCodeAcpAdapter({
@@ -17,7 +20,8 @@ test("ensureReady fails into Failed when binary missing (no fake success)", asyn
   assert.equal(adapter.getStatus(), "Idle");
   await assert.rejects(() => adapter.ensureReady(), ZeroCodeBinNotFoundError);
   assert.equal(adapter.getStatus(), "Failed");
-  assert.match(adapter.getLastError() ?? "", /ZEROCODE_BIN|Agent path|card 1/i);
+  assert.equal(adapter.getLastError(), ZEROCODE_INCOMPLETE_INSTALL_MESSAGE);
+  assert.match(adapter.getLastError() ?? "", /安装包不完整/);
 });
 
 test("getStatus stays Idle before ensureReady", () => {

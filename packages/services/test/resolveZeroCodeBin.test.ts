@@ -6,6 +6,7 @@ import test from "node:test";
 import {
   resolveZeroCodeBin,
   ZeroCodeBinNotFoundError,
+  ZEROCODE_INCOMPLETE_INSTALL_MESSAGE,
 } from "../src/zerocode-acp/resolveZeroCodeBin.js";
 
 async function withTempDir(run: (dir: string) => Promise<void>): Promise<void> {
@@ -111,7 +112,7 @@ test("resolveZeroCodeBin ignores unusable ZEROCODE_BIN and continues", async () 
   });
 });
 
-test("resolveZeroCodeBin throws clear error without silent glm/zcode-cli fallback", async () => {
+test("resolveZeroCodeBin throws incomplete-install message without silent glm/zcode-cli fallback", async () => {
   await withTempDir(async (dir) => {
     assert.throws(
       () =>
@@ -123,9 +124,9 @@ test("resolveZeroCodeBin throws clear error without silent glm/zcode-cli fallbac
         }),
       (err: unknown) => {
         assert.ok(err instanceof ZeroCodeBinNotFoundError);
-        assert.match(err.message, /ZEROCODE_BIN/);
-        assert.match(err.message, /Do not fall back to zcode-cli \/ glm/);
-        assert.doesNotMatch(err.message, /GLM_BINARY_PATH|zcode\.cjs|app-server/);
+        assert.equal(err.message, ZEROCODE_INCOMPLETE_INSTALL_MESSAGE);
+        assert.match(err.message, /安装包不完整/);
+        assert.doesNotMatch(err.message, /zcode-cli|glm|Z\.AI|GLM_BINARY_PATH|zcode\.cjs|app-server/i);
         return true;
       },
     );
