@@ -1,6 +1,8 @@
 /**
- * MVP-2 card A env / window gates for SessionPort default path vs docks / V4 escape.
+ * MVP-2 / MVP-8: SessionPort default main chat vs docks / V4 escape.
  * Renderer-only; Host runtime selection is Integration's job.
+ * Product default (desktop): shouldUseSessionPortMainChat from V4WorkspaceChatArea.
+ * Dock stays opt-in via isSessionPortDockEnabled.
  */
 
 type GateWindow = {

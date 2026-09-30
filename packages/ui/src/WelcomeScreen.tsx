@@ -22,7 +22,7 @@ import { ZCodeAboutLogo } from "@/components/ui/ZCodeAboutLogo.js";
 import { useOAuth } from "./hooks/useOAuth.js";
 import { useZCodeIntl } from "./i18n/IntlProvider.js";
 import { useServices } from "./hooks/useServices.js";
-import { buildLoginApiKeySkipSettings } from "./login/LoginApiKeyForm.helpers.js";
+import { buildWelcomeContinueSettings } from "./login/welcomeContinueSettings.js";
 import { logger } from "./logger.js";
 import { renderOAuthProviderIcon } from "./lib/oauthProviderIcon.js";
 import { ThemeHeroVisual } from "./openWorkspacePageThemeHero.js";
@@ -468,7 +468,7 @@ function WelcomeContinuePanel({
     setBusy(true);
     setError(null);
     try {
-      await settingService.update(buildLoginApiKeySkipSettings(Date.now()));
+      await settingService.update(buildWelcomeContinueSettings(Date.now()));
       await onContinue();
     } catch (skipError) {
       logger.error("[Welcome] continue without API key failed", { error: skipError });
@@ -517,7 +517,7 @@ function WelcomeContinuePanel({
           disabled={busy}
           onClick={onCancel}
         >
-          {intl.formatMessage({ id: "login.apiKey.cancel" })}
+          {intl.formatMessage({ id: "common.cancel" })}
         </Button>
       ) : null}
     </div>

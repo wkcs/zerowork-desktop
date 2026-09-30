@@ -803,13 +803,6 @@ const zhCN: Record<string, string> = {
   "login.expired.action": "重新登录",
   "login.expired.restart": "确认并重启",
   "login.useApiKey": "使用 API key",
-  "login.apiKey.title": "ZeroCode API Key",
-  "login.apiKey.placeholder": "输入 ZeroCode API key",
-  "login.apiKey.cancel": "取消",
-  "login.apiKey.continue": "继续",
-  "login.apiKey.emptyError": "请输入 ZeroCode API key。",
-  "login.apiKey.saveError": "保存 API key 失败：{error}",
-  "login.apiKey.skipError": "跳过 API key 设置失败：{error}",
   "login.skip": "暂时跳过",
   "settings.onboarding": "引导",
   "settings.onboardingDescription":

@@ -56,6 +56,8 @@ import {
   placeWorkbenchSessionInSplit,
   type WorkbenchSessionTarget,
 } from "@/v4/workbenchSessionPlacement.js";
+import { SessionPortChatPanel } from "@/session-port/SessionPortChatPanel.js";
+import { shouldUseSessionPortMainChat } from "@/session-port/sessionPortGates.js";
 
 function dragPayloadSessionTarget(payload: WorkbenchSessionDragPayload): WorkbenchSessionTarget {
   return {
@@ -547,6 +549,27 @@ export function V4WorkspaceChatArea({
     },
     [placementShellBinding],
   );
+
+  // MVP-8: Desktop default main chat = SessionPort (auth-missing banner path).
+  // V4 SessionPane remains available via ZEROWORK_V4_SESSION_PANE=1 escape hatch.
+  if (shouldUseSessionPortMainChat(isDesktop)) {
+    return (
+      <div
+        data-testid="zerocode-session-port-main"
+        style={{
+          display: "flex",
+          flexDirection: "column",
+          flex: 1,
+          minHeight: "100%",
+          height: "100%",
+          width: "100%",
+          boxSizing: "border-box",
+        }}
+      >
+        <SessionPortChatPanel workspacePath={workspacePath} variant="main" />
+      </div>
+    );
+  }
 
   return (
     <div ref={containerRef} style={containerStyle} className="relative h-full min-h-0 w-full">
