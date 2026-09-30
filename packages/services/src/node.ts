@@ -377,6 +377,7 @@ import { bindAccountProviderInvalidation } from "./model-provider/accountProvide
 import { AccountProviderApiClient } from "./model-provider/accountProviderApiClient.js";
 import { AccountProviderApiKeyResolver } from "./model-provider/accountProviderApiKeyResolver.js";
 import { createProviderConfigRuntime } from "./model-provider/providerConfigRuntime.js";
+import { isBenignPersonalProviderConfigRecovery } from "./model-provider/legacyProviderFailSoft.js";
 import { fetchZCodeBuiltinRemoteRelease } from "./model-provider/zcodeBuiltinRemoteConfig.js";
 import {
   createProviderRuntimeFromConfigRuntime,
@@ -1546,13 +1547,21 @@ export function createLocalServices(options: {
       providerConfigLog.warn(undefined, "ZCode Built-in Config 远端刷新失败", { error });
     },
     onPersonalConfigRecovery: (event) => {
-      providerConfigLog.warn(
-        undefined,
-        "Personal Provider Config 加载失败，已保留磁盘状态并以内存空配置降级",
-        {
-          error: event.error,
-        },
-      );
+      // 干净 HOME / 缺省 Personal 配置、以及旧 ZCode Built-in Release 不可用导致的连带失败：
+      // 已是内存空配置降级，勿以 warn 刷启动日志。真实损坏/解析错误仍保留单次 warn。
+      if (isBenignPersonalProviderConfigRecovery(event.error)) {
+        providerConfigLog.debug(
+          undefined,
+          "Personal Provider Config 缺失或不可用，已以内存空配置降级",
+          { error: event.error },
+        );
+      } else {
+        providerConfigLog.warn(
+          undefined,
+          "Personal Provider Config 加载失败，已保留磁盘状态并以内存空配置降级",
+          { error: event.error },
+        );
+      }
     },
     onPersonalConfigPollingError: (error) => {
       // 轮询错误只在进入失败状态时回调一次；下一轮仍会自行重试，避免持续故障刷盘。

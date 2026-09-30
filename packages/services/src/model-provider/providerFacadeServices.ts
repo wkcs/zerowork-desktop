@@ -19,6 +19,8 @@ import {
 import { createServiceDescriptor } from "../descriptors.js";
 import type { ModelConnectivityResult } from "@zcode/shared";
 import { createServiceLogger } from "../logger/serviceLogger.js";
+import { MVP6_STUB_ZAI_PRODUCT_SERVICES } from "../mvp6ProductSurface.js";
+import { isLegacyProviderSurfaceSoftFailure } from "./legacyProviderFailSoft.js";
 
 export type {
   ProviderSettingsProviderView,
@@ -106,20 +108,57 @@ export const IModelSelectionService = createServiceDescriptor<IModelSelectionSer
   ServiceChannels.ModelSelection,
 );
 
+const EMPTY_PROVIDER_SETTINGS_VIEW: ProviderSettingsView = Object.freeze({
+  revision: 0,
+  providerTemplates: [],
+  providerOrder: [],
+  providers: [],
+});
+
+const EMPTY_MODEL_SELECTION_VIEW: ModelSelectionView = Object.freeze({
+  revision: 0,
+  providers: [],
+});
+
+
 export function createProviderSettingsService(
   facade: ProviderSettingsFacade,
   ensureReady: () => Promise<void> = async () => {},
   testConnectivity?: ProviderSettingsConnectivityTester,
 ): IProviderSettingsService {
+  const log = createServiceLogger("provider-settings");
   return {
     onDidChange: toEvent((listener) => facade.onDidChange(listener)),
     getView: async () => {
-      await ensureReady();
-      return facade.getView();
+      try {
+        await ensureReady();
+        return facade.getView();
+      } catch (error) {
+        // ZeroWork 产品模式：旧 provider-settings 非产品路径；缺 Built-in Release 时返回空视图，
+        // 避免启动期 RPC FAIL。请用户走 ZeroCode 配置（~/.zerowork/config.toml）。
+        if (MVP6_STUB_ZAI_PRODUCT_SERVICES && isLegacyProviderSurfaceSoftFailure(error)) {
+          log.debug(undefined, "provider-settings.getView fail-soft (use ZeroCode config)", {
+            error,
+          });
+          return EMPTY_PROVIDER_SETTINGS_VIEW;
+        }
+        throw error;
+      }
     },
     refresh: async (reason) => {
-      await ensureReady();
-      return facade.refresh(reason);
+      try {
+        await ensureReady();
+        return facade.refresh(reason);
+      } catch (error) {
+        if (MVP6_STUB_ZAI_PRODUCT_SERVICES && isLegacyProviderSurfaceSoftFailure(error)) {
+          log.debug(undefined, "provider-settings.refresh fail-soft (use ZeroCode config)", {
+            reason,
+            error,
+          });
+          return EMPTY_PROVIDER_SETTINGS_VIEW;
+        }
+        throw error;
+      }
     },
     createPersonalProvider: async (input) => {
       await ensureReady();
@@ -219,13 +258,22 @@ export function createModelSelectionService(
   let disposed = false;
   const listeners = new Set<(view: ModelSelectionView) => void>();
   const getView = async (input?: ModelSelectionViewInput): Promise<ModelSelectionView> => {
-    await ensureReady();
-    if (disposed) throw new Error("ModelSelectionService 已 dispose");
-    const configuredDefault = await configuredDefaultSource?.read();
-    if (disposed) throw new Error("ModelSelectionService 已 dispose");
-    const base = facade.getView(configuredDefault);
-    if (revision < base.revision) revision = base.revision;
-    return facade.getView(configuredDefault, revision, input);
+    try {
+      await ensureReady();
+      if (disposed) throw new Error("ModelSelectionService 已 dispose");
+      const configuredDefault = await configuredDefaultSource?.read();
+      if (disposed) throw new Error("ModelSelectionService 已 dispose");
+      const base = facade.getView(configuredDefault);
+      if (revision < base.revision) revision = base.revision;
+      return facade.getView(configuredDefault, revision, input);
+    } catch (error) {
+      if (disposed) throw error;
+      if (MVP6_STUB_ZAI_PRODUCT_SERVICES && isLegacyProviderSurfaceSoftFailure(error)) {
+        log.debug(undefined, "model-selection.getView fail-soft (use ZeroCode config)", { error });
+        return EMPTY_MODEL_SELECTION_VIEW;
+      }
+      throw error;
+    }
   };
   const emit = (): void => {
     if (disposed) return;
