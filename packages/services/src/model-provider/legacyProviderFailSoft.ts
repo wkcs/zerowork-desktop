@@ -20,11 +20,15 @@ export function isBenignPersonalProviderConfigRecovery(error: unknown): boolean 
 }
 
 export function isLegacyProviderSurfaceSoftFailure(error: unknown): boolean {
-  return collectErrorMessages(error).some(
-    (message) =>
-      message.includes("Bundled 与 Active ZCode Built-in Release 均不可用") ||
-      (message.includes("ZCode Built-in") && message.includes("不可用")),
-  );
+  return collectErrorMessages(error).some((message) => {
+    if (message.includes("Bundled 与 Active ZCode Built-in Release 均不可用")) return true;
+    if (message.includes("ZCode Built-in") && message.includes("不可用")) return true;
+    // 远端 client-config / CDN 刷新失败：ZeroWork 不走 Built-in 产品路径，refresh 应空视图而非 RPC FAIL。
+    if (message.includes("ZCode Built-in client-config")) return true;
+    if (message.includes("ZCode Built-in") && /invalid response|刷新|refresh|download/i.test(message))
+      return true;
+    return false;
+  });
 }
 
 export function collectErrorMessages(error: unknown): string[] {

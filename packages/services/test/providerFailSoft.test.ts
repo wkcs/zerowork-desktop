@@ -4,7 +4,10 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
 import { createProviderRuntime } from "../src/model-provider/providerRuntime.js";
-import { isBenignPersonalProviderConfigRecovery } from "../src/model-provider/legacyProviderFailSoft.js";
+import {
+  isBenignPersonalProviderConfigRecovery,
+  isLegacyProviderSurfaceSoftFailure,
+} from "../src/model-provider/legacyProviderFailSoft.js";
 import { MVP6_STUB_ZAI_PRODUCT_SERVICES } from "../src/mvp6ProductSurface.js";
 
 test("MVP-6 product stub flag remains on (ZeroWork fail-soft gate)", () => {
@@ -39,4 +42,12 @@ test("ProviderRuntime start + getView succeed with missing builtin release (empt
   } finally {
     await rm(dir, { recursive: true, force: true });
   }
+});
+
+test("isLegacyProviderSurfaceSoftFailure covers remote client-config invalid response", () => {
+  assert.equal(
+    isLegacyProviderSurfaceSoftFailure(new Error("ZCode Built-in client-config: invalid response")),
+    true,
+  );
+  assert.equal(isLegacyProviderSurfaceSoftFailure(new Error("disk full")), false);
 });
