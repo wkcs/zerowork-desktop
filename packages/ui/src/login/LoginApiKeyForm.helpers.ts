@@ -1,8 +1,8 @@
 import type { AppSettings } from "@zcode/shared";
 
 /**
- * MVP-5 card 3: Welcome API Key form is a single ZeroCode BYOK field.
- * No zai | bigmodel product picker.
+ * MVP-7: Welcome no longer collects a ZeroCode API key.
+ * Skip/continue still marks provider-family migration done.
  */
 
 export function buildLoginApiKeySkipSettings(now: number): Pick<
