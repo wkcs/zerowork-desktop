@@ -7,6 +7,7 @@ export {
   type PromptResult,
   type SessionHandle,
   type SessionUiEvent,
+  type AuthenticateResult,
 } from "./zerocodeSessionPort.js";
 
 export {

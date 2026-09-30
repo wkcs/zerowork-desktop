@@ -124,4 +124,23 @@ export interface SessionPort {
   subscribe(sessionId: string, listener: (ev: SessionUiEvent) => void): () => void;
 
   getStatus(): AgentStatus;
+
+  /**
+   * Host auth / BYOK entry (MVP-2 card B).
+   * Explains or applies BYOK via ~/.zerowork/config.toml; never opens grok.com / auth.x.ai.
+   * May optionally call ACP `authenticate` with `{ methodId: "xai.api_key" }` when a key path exists.
+   * Return shape: see `AuthenticateResult` in `./authSurface.js`.
+   */
+  authenticate(methodId?: string): Promise<AuthenticateResultLike>;
+}
+
+/** Minimal authenticate result shape (full fields in authSurface.AuthenticateResult). */
+export interface AuthenticateResultLike {
+  ok: boolean;
+  code: string;
+  message: string;
+  methodId?: string;
+  calledAcpAuthenticate: boolean;
+  configPath: string;
+  byokTemplate: string;
 }

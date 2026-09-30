@@ -324,6 +324,7 @@ export {
   type CreateZeroCodeSessionPortServiceOptions,
   type HostDefaultAgentRuntimeKind,
   type SessionUiEvent,
+  type AuthenticateResult,
   type SessionHandle,
   type PromptInput,
   type PromptResult,
