@@ -12,6 +12,7 @@ import { ZeroCodeAcpAdapter } from "../zerocode-acp/ZeroCodeAcpAdapter.js";
 import {
   AuthCredentialsMissingError,
   projectAuthFailureToSessionUiEvent,
+  writeByokApiKeyToConfig,
   type AuthenticateResult,
 } from "../zerocode-acp/authSurface.js";
 import type {
@@ -136,6 +137,12 @@ export function createZeroCodeSessionPortService(
 
     async authenticate(methodId?: string): Promise<AuthenticateResult> {
       return adapter.authenticate(methodId);
+    },
+
+    async saveByokApiKey(apiKey: string): Promise<{ configPath: string }> {
+      const result = writeByokApiKeyToConfig(apiKey);
+      options.log?.(`[zerocode-session-port] BYOK saved to ${result.configPath}`);
+      return result;
     },
 
     onDynamicSessionUiEvent(sessionId: string): Event<SessionUiEvent> {

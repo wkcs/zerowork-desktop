@@ -65,7 +65,10 @@ import {
   type SettingsModelProviderTarget,
 } from "@/lib/settingsNavigation.js";
 import { useEnterpriseCodingPlanProducts } from "@/settings/model-provider-section/useEnterpriseCodingPlanProducts.js";
-import { MVP5_HIDE_ZAI_PRODUCT_ENTRIES } from "@/lib/mvp5ProductSurface.js";
+import {
+  MVP5_HIDE_ZAI_PRODUCT_ENTRIES,
+  isMvp5BlockedProductPurchaseUrl,
+} from "@/lib/mvp5ProductSurface.js";
 
 export {
   fuzzyMatch,
@@ -781,7 +784,7 @@ export function ModelProviderSection({
   const handleOpenApiKeyUrl = useCallback(
     (url: string) => {
       const normalizedUrl = url.trim();
-      if (!normalizedUrl) {
+      if (!normalizedUrl || isMvp5BlockedProductPurchaseUrl(normalizedUrl)) {
         return;
       }
       platform.openExternal(normalizedUrl);

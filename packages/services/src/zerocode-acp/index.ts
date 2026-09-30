@@ -68,6 +68,7 @@ export {
   buildByokConfigGuidance,
   extractAuthFailureParts,
   hasByokKeyPathInConfig,
+  writeByokApiKeyToConfig,
   parseInitializeAuthSnapshot,
   projectAuthFailureToSessionUiEvent,
   resolveAgentConfigTomlPath,
