@@ -15,7 +15,8 @@ import { delimiter, isAbsolute, join, resolve } from "node:path";
 
 export const ZEROCODE_BIN_ENV = "ZEROCODE_BIN";
 export const ZEROCODE_BIN_BASENAME = "zerocode";
-export const ZEROCODE_BUNDLED_RELATIVE = join("agent", "zerocode");
+/** POSIX-relative path (no node:path). Safe for shared/renderer-imported graphs. */
+export const ZEROCODE_BUNDLED_RELATIVE = "agent/zerocode";
 
 export class ZeroCodeBinNotFoundError extends Error {
   readonly code = "ZEROCODE_BIN_NOT_FOUND" as const;

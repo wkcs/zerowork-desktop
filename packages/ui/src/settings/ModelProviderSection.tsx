@@ -65,6 +65,10 @@ import {
   type SettingsModelProviderTarget,
 } from "@/lib/settingsNavigation.js";
 import { useEnterpriseCodingPlanProducts } from "@/settings/model-provider-section/useEnterpriseCodingPlanProducts.js";
+import {
+  MVP5_HIDE_ZAI_PRODUCT_ENTRIES,
+  isMvp5BlockedProductPurchaseUrl,
+} from "@/lib/mvp5ProductSurface.js";
 
 export {
   fuzzyMatch,
@@ -607,8 +611,12 @@ export function ModelProviderSection({
 
   const presetProviders = useMemo(
     () =>
-      PRESET_PROVIDER_SPECS.filter((preset) =>
-        shouldShowPresetProviderForActiveOAuth(preset.id, effectiveProviderFamilyDomain),
+      // MVP-5 卡2：设置页不展示 Z.ai / BigModel Start Plan 预设。
+      (MVP5_HIDE_ZAI_PRODUCT_ENTRIES
+        ? []
+        : PRESET_PROVIDER_SPECS.filter((preset) =>
+            shouldShowPresetProviderForActiveOAuth(preset.id, effectiveProviderFamilyDomain),
+          )
       ).map((preset) => ({
         ...preset,
         provider: modelProviders.find((provider) => provider.providerId === preset.id) ?? null,
@@ -776,7 +784,7 @@ export function ModelProviderSection({
   const handleOpenApiKeyUrl = useCallback(
     (url: string) => {
       const normalizedUrl = url.trim();
-      if (!normalizedUrl) {
+      if (!normalizedUrl || isMvp5BlockedProductPurchaseUrl(normalizedUrl)) {
         return;
       }
       platform.openExternal(normalizedUrl);

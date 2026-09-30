@@ -2,6 +2,7 @@ import type { ComponentProps } from "react";
 import { Button } from "@/components/ui/button.js";
 import { useZCodeIntl } from "@/i18n/IntlProvider.js";
 import { useOptionalCodingPlanUpgradeDialog } from "@/settings/CodingPlanUpgradeDialogProvider.js";
+import { MVP5_HIDE_ZAI_PRODUCT_ENTRIES } from "@/lib/mvp5ProductSurface.js";
 
 export function useCodingPlanEntryGate() {
   const dialog = useOptionalCodingPlanUpgradeDialog();
@@ -25,6 +26,9 @@ export function CodingPlanEntryButton({
   ...props
 }: ComponentProps<typeof Button> & { bypassGate?: boolean }) {
   const gate = useCodingPlanEntryGate();
+  if (MVP5_HIDE_ZAI_PRODUCT_ENTRIES) {
+    return null;
+  }
   const status = bypassGate ? "ready" : gate.status;
   return (
     <Button

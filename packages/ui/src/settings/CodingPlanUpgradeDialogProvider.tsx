@@ -19,6 +19,7 @@ import {
 } from "@/hooks/useCodingPlanEntryPlanList.js";
 import { usePlatform } from "@/hooks/usePlatform.js";
 import { reportCodingPlanUpgradeClick } from "@/lib/codingPlanFunnelTelemetry.js";
+import { MVP5_HIDE_ZAI_PRODUCT_ENTRIES } from "@/lib/mvp5ProductSurface.js";
 
 interface CodingPlanUpgradeDialogContextValue {
   inventory: CodingPlanEntryInventory;
@@ -32,7 +33,31 @@ const CodingPlanUpgradeDialogContext = createContext<CodingPlanUpgradeDialogCont
   null,
 );
 
+const HIDDEN_CODING_PLAN_UPGRADE_CONTEXT: CodingPlanUpgradeDialogContextValue = {
+  inventory: {
+    status: "ready",
+    entryPlanList: "",
+    retry: () => undefined,
+  },
+  openCodingPlanUpgrade: () => false,
+};
+
+/**
+ * MVP-5 卡2：默认不挂载升级对话框。Root 已去掉本 Provider；
+ * 若仍有局部挂载，也只注入 no-op context。
+ */
 export function CodingPlanUpgradeDialogProvider({ children }: { children: ReactNode }) {
+  if (MVP5_HIDE_ZAI_PRODUCT_ENTRIES) {
+    return (
+      <CodingPlanUpgradeDialogContext.Provider value={HIDDEN_CODING_PLAN_UPGRADE_CONTEXT}>
+        {children}
+      </CodingPlanUpgradeDialogContext.Provider>
+    );
+  }
+  return <CodingPlanUpgradeDialogProviderActive>{children}</CodingPlanUpgradeDialogProviderActive>;
+}
+
+function CodingPlanUpgradeDialogProviderActive({ children }: { children: ReactNode }) {
   const platform = usePlatform();
   const inventory = useCodingPlanEntryPlanList();
   const inventoryRef = useRef(inventory);
@@ -108,10 +133,9 @@ export function CodingPlanUpgradeDialogProvider({ children }: { children: ReactN
 
 export function useCodingPlanUpgradeDialog() {
   const context = useContext(CodingPlanUpgradeDialogContext);
+  // MVP-5 卡2：Root 可不再挂载 Provider；调用点拿到 no-op，避免抛错。
   if (!context) {
-    throw new Error(
-      "useCodingPlanUpgradeDialog must be used within CodingPlanUpgradeDialogProvider",
-    );
+    return HIDDEN_CODING_PLAN_UPGRADE_CONTEXT;
   }
   return context;
 }

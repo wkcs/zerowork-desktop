@@ -64,6 +64,7 @@ import type { ProviderSettingsView } from "@zcode/services";
 import type { SavePersonalModelDraftInput } from "@zcode/provider";
 import { resolveAccountProviderInspectionAccess } from "@/lib/accountProviderAccess.js";
 import { projectProviderSettingsViewToFormProviders } from "@/lib/providerSettingsFormProjection.js";
+import { isMvp5BlockedProductPurchaseUrl } from "@/lib/mvp5ProductSurface.js";
 
 const START_PLAN_ENTRY_BANNER_CLASS =
   "min-h-20 w-full overflow-hidden rounded-xl border border-border bg-[radial-gradient(circle_at_14%_12%,color-mix(in_srgb,var(--color-success)_24%,var(--color-background)_76%)_0%,color-mix(in_srgb,var(--color-success)_10%,var(--color-surface)_90%)_64%,var(--color-surface)_300%)] p-4 text-left transition-colors hover:border-border-hover";
@@ -615,7 +616,11 @@ export function ModelProviderSectionDetail({
           mcpQuotaLimit={selectedNavItem.mcpQuotaLimit ?? null}
           authError={codingPlanAuthError}
           onOpenRegistration={onOpenBigModelRegistration}
-          purchaseUrl={selectedNavItem.purchaseUrl}
+          purchaseUrl={
+            isMvp5BlockedProductPurchaseUrl(selectedNavItem.purchaseUrl)
+              ? undefined
+              : selectedNavItem.purchaseUrl
+          }
           inactivePlanTitle={selectedNavItem.inactivePlanTitle}
           statusLabelId={visibleStatusLabelId}
           statusMessage={selectedNavItem.statusMessage}
@@ -731,7 +736,11 @@ export function ModelProviderSectionDetail({
             // 因此登录入口必须留在 Plan Card 本身，否则用户进入 Coding tab 后没有下一步动作。
             loginActionVisible
             loginActionPlacement="trailing"
-            purchaseUrl={selectedNavItem.purchaseUrl}
+            purchaseUrl={
+              isMvp5BlockedProductPurchaseUrl(selectedNavItem.purchaseUrl)
+                ? undefined
+                : selectedNavItem.purchaseUrl
+            }
             planLevel={selectedNavItem.planLevel}
             inactivePlanTitle={selectedNavItem.inactivePlanTitle}
             statusLabelId={visibleStatusLabelId}
@@ -837,9 +846,13 @@ export function ModelProviderSectionDetail({
   }
 
   const customProvider = selectedNavItem.provider;
-  const customApiKeyUrl = customProvider.templateId
+  const rawCustomApiKeyUrl = customProvider.templateId
     ? getProviderFormApiKeyManagementUrl(customProvider)
     : undefined;
+  const customApiKeyUrl =
+    rawCustomApiKeyUrl && !isMvp5BlockedProductPurchaseUrl(rawCustomApiKeyUrl)
+      ? rawCustomApiKeyUrl
+      : undefined;
   return (
     // 仅展示预设模板声明的入口，不根据地址猜测自定义 Provider 的 Key 控制台。
     <InlineEditableProviderCard

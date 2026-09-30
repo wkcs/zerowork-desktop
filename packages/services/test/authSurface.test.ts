@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { mkdtempSync, mkdirSync, writeFileSync, rmSync } from "node:fs";
+import { mkdtempSync, mkdirSync, writeFileSync, rmSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { JsonRpcStdioError } from "../src/zerocode-acp/jsonRpcStdio.js";
@@ -13,6 +13,7 @@ import {
   buildByokConfigGuidance,
   extractAuthFailureParts,
   hasByokKeyPathInConfig,
+  writeByokApiKeyToConfig,
   parseInitializeAuthSnapshot,
   projectAuthFailureToSessionUiEvent,
   resolveAgentConfigTomlPath,
@@ -219,4 +220,57 @@ test("AuthCredentialsMissingError.sessionUiEvent is the UI-consumable error cont
   assert.equal(typeof wrapped.sessionUiEvent.retriable, "boolean");
   assert.match(wrapped.sessionUiEvent.message, /AUTH_CREDENTIALS_MISSING/);
   assert.match(wrapped.sessionUiEvent.message, /mvp1-wire-home\/\.zerowork\/config\.toml/);
+});
+
+test("writeByokApiKeyToConfig writes preferred_method + api_key Host can detect", () => {
+  const root = mkdtempSync(join(tmpdir(), "zw-auth-write-byok-"));
+  const dataDir = join(root, ".zerowork");
+  try {
+    const { configPath } = writeByokApiKeyToConfig("user-byok-key-for-test", {
+      GROK_HOME: dataDir,
+    });
+    assert.equal(configPath, join(dataDir, "config.toml"));
+    assert.equal(hasByokKeyPathInConfig({ GROK_HOME: dataDir }), true);
+    const body = readFileSync(configPath, "utf8");
+    assert.match(body, /preferred_method\s*=\s*"api_key"/);
+    assert.match(body, /api_key\s*=\s*"user-byok-key-for-test"/);
+    assert.match(body, /\[model\.zerocode\]/);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test("writeByokApiKeyToConfig updates existing config without dropping marketplace", () => {
+  const root = mkdtempSync(join(tmpdir(), "zw-auth-write-byok-merge-"));
+  const dataDir = join(root, ".zerowork");
+  mkdirSync(dataDir, { recursive: true });
+  writeFileSync(
+    join(dataDir, "config.toml"),
+    `[model.wire-local]
+name = "Wire Local"
+base_url = "http://127.0.0.1:9/v1"
+api_key = "old-key"
+
+[auth]
+preferred_method = "oauth"
+
+[marketplace]
+default_skills_installs_purged = true
+`,
+    "utf8",
+  );
+  try {
+    writeByokApiKeyToConfig("new-key", { GROK_HOME: dataDir });
+    const body = readFileSync(join(dataDir, "config.toml"), "utf8");
+    assert.match(body, /api_key\s*=\s*"new-key"/);
+    assert.match(body, /preferred_method\s*=\s*"api_key"/);
+    assert.match(body, /\[marketplace\]/);
+    assert.equal(hasByokKeyPathInConfig({ GROK_HOME: dataDir }), true);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test("writeByokApiKeyToConfig rejects empty key", () => {
+  assert.throws(() => writeByokApiKeyToConfig("   ", { GROK_HOME: "/tmp/unused" }), /empty/i);
 });

@@ -59,6 +59,11 @@ export interface IZeroCodeSessionPortService {
    * only when config.toml already has a BYOK key path.
    */
   authenticate(methodId?: string): Promise<AuthenticateResult>;
+  /**
+   * Persist ZeroCode BYOK api_key into ~/.zerowork/config.toml (Host auth surface).
+   * Does not open grok.com / z.ai purchase URLs.
+   */
+  saveByokApiKey(apiKey: string): Promise<{ configPath: string }>;
   /** Per-session projected UI events (not raw ACP). */
   onDynamicSessionUiEvent(sessionId: string): Event<SessionUiEvent>;
 }

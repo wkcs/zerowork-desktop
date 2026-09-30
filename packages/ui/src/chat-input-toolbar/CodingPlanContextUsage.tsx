@@ -1,3 +1,4 @@
+import { MVP5_HIDE_ZAI_PRODUCT_ENTRIES } from "@/lib/mvp5ProductSurface.js";
 /* eslint-disable max-lines -- Composer 用量入口集中维护多来源状态、弹层和重置交互；本阶段只迁移 Account Access，不拆分既有 UI 结构。 */
 import { type CodingPlanResetType } from "@zcode/shared";
 import { Loader2 } from "lucide-react";
@@ -48,6 +49,9 @@ export type CodingPlanQuotaResetAutoConfettiArms = Record<CodingPlanResetType, n
 export function hasChatCodingPlanUsageRemaining(
   config: ChatCodingPlanUsageRemainingConfig,
 ): boolean {
+  if (MVP5_HIDE_ZAI_PRODUCT_ENTRIES) {
+    return false;
+  }
   return (
     Boolean(resolveCodingPlanUsageRemainingState(config)) ||
     // 按需刷新下首次打开可能还没有快照；仍需保留 Context trigger，

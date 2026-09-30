@@ -41,6 +41,7 @@ import {
 import { selectWorkspaceZCodeState, useZCodeSessionStore } from "@/store/zcodeSessionStore.js";
 import { parseCustomProviderIdFromSupplierKey } from "@/lib/modelConfigSync.js";
 import { setPendingSettingsUsageIntent } from "@/lib/settingsNavigation.js";
+import { MVP5_HIDE_ZAI_PRODUCT_ENTRIES } from "@/lib/mvp5ProductSurface.js";
 import {
   resolveSidebarFooterPlanBadgeLabel,
   resolveSidebarFooterProfilePlanBadge,
@@ -54,6 +55,37 @@ export {
 const TID_SIDEBAR_CODING_PLAN_UPGRADE_BUTTON = "sidebar-coding-plan-upgrade-button";
 
 export function WorkspaceSidebarFooterUsageSummary({
+  enabled,
+  onUsageClick,
+  onUpgradeClick,
+  workspaceIdentity,
+  workspacePath,
+}: {
+  enabled: boolean;
+  onUsageClick?: () => void;
+  onUpgradeClick?: (
+    providerId: SidebarUsageCodingPlanProviderId,
+    funnelContext: CodingPlanFunnelContext,
+  ) => void;
+  workspaceIdentity?: string;
+  workspacePath?: string;
+}) {
+  // MVP-5 卡2：侧栏用量 / Coding Plan 升级漏斗对用户不可见。
+  if (MVP5_HIDE_ZAI_PRODUCT_ENTRIES) {
+    return null;
+  }
+  return (
+    <WorkspaceSidebarFooterUsageSummaryActive
+      enabled={enabled}
+      onUsageClick={onUsageClick}
+      onUpgradeClick={onUpgradeClick}
+      workspaceIdentity={workspaceIdentity}
+      workspacePath={workspacePath}
+    />
+  );
+}
+
+function WorkspaceSidebarFooterUsageSummaryActive({
   enabled,
   onUsageClick,
   onUpgradeClick,

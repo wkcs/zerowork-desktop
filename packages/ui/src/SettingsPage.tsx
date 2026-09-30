@@ -56,6 +56,7 @@ import {
 import { buildUsageEntitlementCacheKey } from "@/lib/usageEntitlementCache.js";
 import { ModelProviderSection } from "@/settings/ModelProviderSection.js";
 import { useCodingPlanUpgradeDialog } from "@/settings/CodingPlanUpgradeDialogProvider.js";
+import { MVP5_HIDE_ZAI_PRODUCT_ENTRIES } from "@/lib/mvp5ProductSurface.js";
 import { useEnterpriseCodingPlanProducts } from "@/settings/model-provider-section/useEnterpriseCodingPlanProducts.js";
 import { UsageStatsSection, type UsageStatsSectionTab } from "@/settings/UsageStatsSection.js";
 import {
@@ -533,7 +534,8 @@ export function SettingsPage({
       : resolveSettingsUsageCodingPlanSourceId(usageActiveTab);
   const selectedUsageCodingPlanSource =
     usageCodingPlanSources.find((source) => source.id === selectedUsageCodingPlanSourceId) ?? null;
-  const showUsageCodingPlanTab = usageCodingPlanSources.length > 0;
+  const showUsageCodingPlanTab =
+    !MVP5_HIDE_ZAI_PRODUCT_ENTRIES && usageCodingPlanSources.length > 0;
   const checkingUsageZaiCodingPlanTab = Boolean(
     usageZaiProviderFingerprint &&
     (usageZaiEntitlement.loading || (!usageZaiEntitlement.snapshot && !usageZaiEntitlement.error)),

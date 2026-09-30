@@ -15,7 +15,7 @@
 
 import { homedir } from "node:os";
 import { join } from "node:path";
-import { readFileSync, existsSync } from "node:fs";
+import { readFileSync, existsSync, mkdirSync, writeFileSync } from "node:fs";
 import { JsonRpcStdioError } from "./jsonRpcStdio.js";
 import type { SessionUiEvent } from "./types.js";
 
@@ -111,10 +111,93 @@ export function buildByokConfigGuidance(
   return { configPath, message, byokTemplate: BYOK_TEMPLATE };
 }
 
+function escapeTomlBasicString(value: string): string {
+  return value.replace(/\\/g, "\\\\").replace(/"/g, '\\"');
+}
+
+/**
+ * MVP-5 card 3: persist user BYOK into the same config.toml Host already reads
+ * (`hasByokKeyPathInConfig` / AUTH_CREDENTIALS_MISSING guidance).
+ * Does not invent OAuth; does not log the key.
+ */
+export function writeByokApiKeyToConfig(
+  apiKey: string,
+  env: NodeJS.ProcessEnv = process.env,
+): { configPath: string } {
+  const trimmed = apiKey.trim();
+  if (!trimmed) {
+    throw new Error("API key is empty");
+  }
+  const dataDir = resolveAgentDataDir(env);
+  const configPath = resolveAgentConfigTomlPath(env);
+  mkdirSync(dataDir, { recursive: true, mode: 0o700 });
+
+  const escaped = escapeTomlBasicString(trimmed);
+  const fresh = `[model.zerocode]
+name = "ZeroCode"
+base_url = "http://127.0.0.1:9/v1"
+api_key = "${escaped}"
+
+[auth]
+preferred_method = "api_key"
+`;
+
+  let existing = "";
+  if (existsSync(configPath)) {
+    try {
+      existing = readFileSync(configPath, "utf8");
+    } catch {
+      existing = "";
+    }
+  }
+
+  if (!existing.trim()) {
+    writeFileSync(configPath, fresh, { encoding: "utf8", mode: 0o600 });
+    return { configPath };
+  }
+
+  let next = existing;
+  if (/^\s*api_key\s*=/m.test(next)) {
+    next = next.replace(
+      /^\s*api_key\s*=\s*(?:"[^"]*"|'[^']*')/m,
+      `api_key = "${escaped}"`,
+    );
+  } else {
+    next = `${next.trimEnd()}
+
+[model.zerocode]
+name = "ZeroCode"
+base_url = "http://127.0.0.1:9/v1"
+api_key = "${escaped}"
+`;
+  }
+
+  if (/preferred_method\s*=/i.test(next)) {
+    next = next.replace(
+      /preferred_method\s*=\s*(?:"[^"]*"|'[^']*')/i,
+      `preferred_method = "api_key"`,
+    );
+  } else if (/\[auth\]/.test(next)) {
+    next = next.replace(/\[auth\]/, `[auth]\npreferred_method = "api_key"`);
+  } else {
+    next = `${next.trimEnd()}
+
+[auth]
+preferred_method = "api_key"
+`;
+  }
+
+  writeFileSync(configPath, next.endsWith("\n") ? next : `${next}\n`, {
+    encoding: "utf8",
+    mode: 0o600,
+  });
+  return { configPath };
+}
+
 /**
  * Read-only heuristic: config.toml already has a BYOK key path
  * (`api_key = …` plus preferably preferred_method = api_key).
- * Does not write keys; does not invent OAuth.
+ * Does not invent OAuth.
  */
 export function hasByokKeyPathInConfig(
   env: NodeJS.ProcessEnv = process.env,
