@@ -71,7 +71,7 @@ function isRuntimeRecycleError(error: unknown): boolean {
     message.includes("ZCode agent transport closed") ||
     message.includes("ZCode Protocol client disposed") ||
     message.includes("ZCode Protocol client is disposed") ||
-    message.includes("ZCode Agent runtime is not running")
+    message.includes("ZeroCode runtime is not running")
   );
 }
 

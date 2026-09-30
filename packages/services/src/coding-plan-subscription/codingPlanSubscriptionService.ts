@@ -4,6 +4,8 @@ import type { ICodingPlanSubscriptionService } from "./codingPlanSubscription.js
 import { BigModelCodingPlanSubscriptionProvider } from "./bigmodelCodingPlanSubscriptionProvider.js";
 import type { ModelSelectionView } from "@zcode/provider";
 import { ZaiCodingPlanSubscriptionProvider } from "./zaiCodingPlanSubscriptionProvider.js";
+import { MVP6_STUB_ZAI_PRODUCT_SERVICES } from "../mvp6ProductSurface.js";
+import { createStubCodingPlanSubscriptionService } from "./stubCodingPlanSubscriptionService.js";
 
 interface CodingPlanSubscriptionServiceDependencies {
   apiClient: ApiClient;
@@ -28,6 +30,9 @@ interface CodingPlanSubscriptionServiceDependencies {
 export function createCodingPlanSubscriptionService(
   dependencies: CodingPlanSubscriptionServiceDependencies,
 ): ICodingPlanSubscriptionService {
+  if (MVP6_STUB_ZAI_PRODUCT_SERVICES) {
+    return createStubCodingPlanSubscriptionService();
+  }
   const bigmodelProvider = new BigModelCodingPlanSubscriptionProvider(dependencies);
   const zaiProvider = new ZaiCodingPlanSubscriptionProvider(dependencies);
 

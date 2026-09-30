@@ -145,7 +145,7 @@ export interface ZCodeCancelTaskCommandResult {
 // ---- Workspace 级别事件（预热阶段、task 创建前的异步通知） ----
 
 /**
- * Workspace 级别事件，用于在 task 创建前把 ZCode Agent 异步推送的
+ * Workspace 级别事件，用于在 task 创建前把 ZeroCode 异步推送的
  * 通知（如 slash commands、configOptions）实时传递到 UI。
  *
  * 与 ZCodeStreamEvent 的区别：ZCodeStreamEvent 绑定到具体 taskId，

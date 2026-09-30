@@ -3,12 +3,16 @@ import type { OAuthRuntimeConfig } from "../runtimeConfig.js";
 import { BigModelProviderAdapter } from "./bigmodelProviderAdapter.js";
 import type { OAuthProviderAdapter } from "./providerAdapter.js";
 import { ZaiProviderAdapter } from "./zaiProviderAdapter.js";
+import { MVP6_STUB_ZAI_PRODUCT_SERVICES } from "../../mvp6ProductSurface.js";
 
 /** 根据运行时配置创建可用 provider adapter */
 export function createOAuthProviderAdapters(
   config: OAuthRuntimeConfig,
   options: { apiClient?: ApiClient } = {},
 ): OAuthProviderAdapter[] {
+  if (MVP6_STUB_ZAI_PRODUCT_SERVICES) {
+    return [];
+  }
   const adapters: OAuthProviderAdapter[] = [];
   const apiClient = options.apiClient;
   if (!apiClient) {
