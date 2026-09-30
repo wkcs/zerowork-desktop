@@ -44,6 +44,7 @@ import {
   IZCodeTaskService,
   IZCodeSessionService,
   ICuaPipSessionService,
+  IZeroCodeSessionPortService,
   createZCodeAgentConnectionScope,
   type ZCodeAgentV4ClientMode,
   collectServiceMemoryDiagnostics,
@@ -2917,6 +2918,23 @@ parentPort.on("message", async (e: Electron.MessageEvent) => {
             `local host init (${index + 1}/${agentWarmupTargets.length})`,
           );
         });
+        // MVP-4 card 2: prewarm `zerocode agent stdio` once Host services are ready
+        // (window host init after main-window dom-ready), without waiting for first send.
+        // Does not require an API key — spawn+initialize only; auth stays on session/new.
+        const zerocodeSessionPort = services.getOptional(IZeroCodeSessionPortService);
+        if (zerocodeSessionPort) {
+          void zerocodeSessionPort
+            .ensureReady()
+            .then(() => {
+              logger.info(
+                `ZeroCode SessionPort prewarm ready status=${zerocodeSessionPort.getStatus()}`,
+              );
+            })
+            .catch((error) => {
+              const message = error instanceof Error ? error.message : String(error);
+              logger.warn(`ZeroCode SessionPort prewarm failed: ${message}`);
+            });
+        }
         logger.info("exposing services on ChannelServer...");
         if (!basePortClosed)
           windowHostAttachmentRegistry.attach({

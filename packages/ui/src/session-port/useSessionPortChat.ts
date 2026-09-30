@@ -59,6 +59,34 @@ export function useSessionPortChat(options: {
     };
   }, []);
 
+  // MVP-4 card 2: Host also prewarms; call ensureReady here so incomplete-package /
+  // auth-shaped failures can populate the existing error banner without waiting for send.
+  useEffect(() => {
+    if (!service) return;
+    let cancelled = false;
+    void (async () => {
+      try {
+        await service.ensureReady();
+        if (cancelled) return;
+        setStatus(String(await Promise.resolve(service.getStatus())));
+      } catch (err) {
+        if (cancelled) return;
+        const message =
+          service.getLastError() ??
+          (err instanceof Error ? err.message : String(err));
+        setError(message);
+        try {
+          setStatus(String(await Promise.resolve(service.getStatus())));
+        } catch {
+          setStatus("Failed");
+        }
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [service]);
+
   const handleEvent = useCallback((ev: SessionUiEvent) => {
     switch (ev.type) {
       case "assistant_text_delta": {

@@ -18,6 +18,13 @@ export const ZEROCODE_BIN_BASENAME = "zerocode";
 /** POSIX-relative path (no node:path). Safe for shared/renderer-imported graphs. */
 export const ZEROCODE_BUNDLED_RELATIVE = "agent/zerocode";
 
+/**
+ * User-visible copy when ZEROCODE_BIN / bundled resources/agent/zerocode / PATH
+ * all miss. Must not mention zcode-cli, glm, or Z.AI.
+ */
+export const ZEROCODE_INCOMPLETE_INSTALL_MESSAGE =
+  "安装包不完整：未找到内置 ZeroCode agent（resources/agent/zerocode）。请重新安装本应用。";
+
 export class ZeroCodeBinNotFoundError extends Error {
   readonly code = "ZEROCODE_BIN_NOT_FOUND" as const;
 
@@ -142,14 +149,7 @@ export function resolveZeroCodeBin(
     return { path: fromPath, source: "path" };
   }
 
-  throw new ZeroCodeBinNotFoundError(
-    [
-      "ZeroCode agent binary not found.",
-      `Checked: $${ZEROCODE_BIN_ENV}, bundled resources/agent/${binaryFileName(platform)}, PATH.`,
-      "Set Agent path in settings, or wait for Backend MVP-1 card 1 to ship the zerocode binary.",
-      "Do not fall back to zcode-cli / glm.",
-    ].join(" "),
-  );
+  throw new ZeroCodeBinNotFoundError(ZEROCODE_INCOMPLETE_INSTALL_MESSAGE);
 }
 
 /** Convenience: absolute path only. */
