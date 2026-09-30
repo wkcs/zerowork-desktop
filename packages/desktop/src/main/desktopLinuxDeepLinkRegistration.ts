@@ -9,7 +9,7 @@ import {
 } from "./desktopLinuxXdg.js";
 
 const LINUX_DEEP_LINK_DESKTOP_FILE = "zerowork.desktop";
-const LINUX_DEEP_LINK_MIME_TYPE = "x-scheme-handler/zcode";
+const LINUX_DEEP_LINK_MIME_TYPE = "x-scheme-handler/zerowork";
 // 归属标记：用于识别用户级 zerowork.desktop 是否由本应用写入（历史所有版本都带这行 Comment）。
 const LINUX_DESKTOP_ENTRY_OWNERSHIP_MARKER = "Comment=ZeroWork Desktop App";
 
@@ -110,7 +110,7 @@ function createLinuxDeepLinkDesktopEntry(params: {
   iconName?: string;
 }): string {
   const productName = params.productName ?? "ZeroWork";
-  const iconName = params.iconName ?? "zcode";
+  const iconName = params.iconName ?? "zerowork";
   const command = {
     executablePath: params.executablePath,
     args: params.args ?? [],
