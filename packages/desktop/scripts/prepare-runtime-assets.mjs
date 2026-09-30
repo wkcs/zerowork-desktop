@@ -49,8 +49,9 @@ function runTimedPnpmScript(scriptName) {
 console.log("[prepare:runtime-assets] skip prepare:remote-assets for ZeroWork MVP-0");
 
 
-// MVP-2 卡 D：可选 stage ZeroCode agent（ZEROCODE_BIN 或已放置的 resources/agent）。
-// 缺失不失败，壳包仍可出。
+// MVP-4 卡 1：开发态 soft-skip stage ZeroCode agent（ZEROCODE_BIN 或已放置的 resources/agent）。
+// 缺 bin 不失败，便于无二进制 checkout 仍可 electron . / prepare。
+// 打包 fail-closed 由 bundle.mjs 在 electron-builder 前调用 stage --require 负责。
 console.log("[ci][timer] prepare-runtime-assets:stage-zerocode-agent start");
 {
   const stageStart = Date.now();

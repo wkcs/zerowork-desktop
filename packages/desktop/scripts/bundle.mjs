@@ -701,6 +701,16 @@ function verifyPackagedRuntimeDependencies(os, arch) {
   }
 }
 
+function requireStagedZeroCodeAgent(envPatch = {}) {
+  // MVP-4 card 1: pack must fail closed if agent cannot be staged.
+  // prepare-runtime-assets keeps soft-skip for ordinary dev checkouts.
+  run(
+    process.execPath,
+    [resolve(desktopRoot, "scripts", "stage-zerocode-agent.mjs"), "--require"],
+    envPatch,
+  );
+}
+
 async function main() {
   const { os, arch, skipPrepare, skipBuild, dryRun } = parseArgs(process.argv.slice(2));
   const buildArgs = [
@@ -734,6 +744,9 @@ async function main() {
   if (!skipBuild) {
     run(pnpmCommand, ["build"], buildEnv);
   }
+
+  // Fail closed immediately before electron-builder loads config / copies extraResources.
+  requireStagedZeroCodeAgent(buildEnv);
 
   await runTimedAsync("bundle:electron-builder", () =>
     runElectronBuilderWithRetry(buildArgs, buildEnv),

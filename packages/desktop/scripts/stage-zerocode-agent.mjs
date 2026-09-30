@@ -1,13 +1,20 @@
 #!/usr/bin/env node
 /**
- * MVP-2 卡 D：打包前把 ZeroCode agent 二进制落到 resources/agent/。
+ * Stage ZeroCode agent binary into resources/agent/ before pack / for local resolve.
  *
- * 来源优先级：
- *   1. process.env.ZEROCODE_BIN（若路径可用）
- *   2. 已存在的 resources/agent/zerocode[.exe]（幂等，不覆盖除非 ZEROCODE_BIN 显式给出）
+ * Source priority:
+ *   1. process.env.ZEROCODE_BIN (if the path exists)
+ *   2. Already-present resources/agent/zerocode[.exe] (idempotent; not overwritten
+ *      unless ZEROCODE_BIN is explicitly set)
  *
- * 故意不入库 ELF：二进制在打包机上按平台放入，或由 ZEROCODE_BIN 指向。
- * 缺失时只告警并 exit 0，不阻断壳包构建（骨架阶段允许无 agent）。
+ * ELF is intentionally not committed; CI / pack machines inject via ZEROCODE_BIN.
+ *
+ * Soft vs hard failure (MVP-4 card 1):
+ *   - Default (dev / prepare-runtime-assets / `electron .`): if neither source is
+ *     usable, warn and exit 0 so a checkout without a binary can still open the shell.
+ *   - Pack path (`--require` or ZCODE_REQUIRE_ZEROCODE_AGENT=1): exit non-zero when
+ *     the binary cannot be staged. bundle.mjs and electron-builder.config.js use this
+ *     fail-closed mode so dir/zip/installer packs never silently ship without agent.
  */
 
 import { chmodSync, copyFileSync, existsSync, mkdirSync } from "node:fs";
@@ -19,6 +26,9 @@ const desktopRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const agentDir = resolve(desktopRoot, "resources/agent");
 const binaryName = process.platform === "win32" ? "zerocode.exe" : "zerocode";
 const stagedPath = resolve(agentDir, binaryName);
+
+const requireAgent =
+  process.argv.includes("--require") || process.env.ZCODE_REQUIRE_ZEROCODE_AGENT === "1";
 
 function isUsable(path) {
   return typeof path === "string" && path.trim().length > 0 && existsSync(path.trim());
@@ -34,7 +44,7 @@ if (isUsable(envBin)) {
     try {
       chmodSync(stagedPath, 0o755);
     } catch {
-      // 非致命：部分 CI 文件系统不支持 chmod
+      // Non-fatal: some CI filesystems reject chmod.
     }
   }
   console.log(`[stage-zerocode-agent] staged from ZEROCODE_BIN → ${stagedPath}`);
@@ -46,11 +56,20 @@ if (existsSync(stagedPath)) {
   process.exit(0);
 }
 
+const missingMessage = [
+  "[stage-zerocode-agent] no ZEROCODE_BIN and no staged binary.",
+  `Drop ${binaryName} into packages/desktop/resources/agent/ before pack,`,
+  "or set ZEROCODE_BIN to an absolute path.",
+].join(" ");
+
+if (requireAgent) {
+  console.error(
+    `${missingMessage} Pack/bundle requires a staged ZeroCode agent (fail-closed).`,
+  );
+  process.exit(1);
+}
+
 console.warn(
-  [
-    "[stage-zerocode-agent] skip: no ZEROCODE_BIN and no staged binary.",
-    `Drop ${binaryName} into packages/desktop/resources/agent/ before pack,`,
-    "or set ZEROCODE_BIN to an absolute path. Pack continues without bundled agent.",
-  ].join(" "),
+  `${missingMessage} Dev/prepare soft-skip: shell can still open without a bundled agent.`,
 );
 process.exit(0);
