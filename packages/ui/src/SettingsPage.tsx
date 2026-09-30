@@ -310,7 +310,7 @@ export function SettingsPage({
   const usesInlineWindowControls = Boolean(isWindowsDesktop || isLinuxDesktop);
   const platform = usePlatform();
   const [activeSection, setActiveSection] = useState<SettingsSectionId>(() => {
-    const initialSection = consumeInitialSettingsSection("general");
+    const initialSection = consumeInitialSettingsSection("zeroCodeConfig");
     const visibleInitialSection = resolveSettingsSectionForPlatform(
       initialSection,
       settingsSections,
@@ -615,12 +615,11 @@ export function SettingsPage({
     [openCodingPlanUpgrade],
   );
   const handleOpenModelProviderSettings = useCallback(() => {
-    setActiveSettingsSection("modelProvider");
+    setActiveSettingsSection("zeroCodeConfig");
   }, [setActiveSettingsSection]);
   const handleOpenUsageSettings = useCallback(() => {
-    // 设置页 sidebar footer 里的齿轮/返回按钮复用 onBack，
-    // 但头像菜单的“使用统计”应该停留在设置页并切到 Usage，不能跟着返回工作区。
-    setActiveSettingsSection("usage");
+    // Usage 分区已隐藏（依赖坏的 provider-settings）；头像「使用统计」改道 ZeroCode 配置。
+    setActiveSettingsSection("zeroCodeConfig");
   }, [setActiveSettingsSection]);
   const activeWorkspacePath = useTabStore((state) => state.activeWorkspacePath);
   const tabs = useTabStore((state) => state.tabs);

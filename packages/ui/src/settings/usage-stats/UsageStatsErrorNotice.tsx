@@ -47,7 +47,7 @@ export function UsageStatsErrorNotice({ error }: { error: string }) {
           size="sm"
           variant="outline"
           className="h-7 shrink-0 rounded-md bg-background"
-          onClick={() => setPendingSettingsSection("modelProvider")}
+          onClick={() => setPendingSettingsSection("zeroCodeConfig")}
         >
           {intl.formatMessage({ id: "settings.usage.checkApiKey" })}
         </Button>
