@@ -757,9 +757,9 @@ function V4ComposerModelControlsImpl({
     });
   }, [displayProvider, intl, modelSelectionView]);
 
-  // 修复：恢复「管理模型」入口（老版 onManageModels = 打开设置页并定位模型供应商区）。
+  // 「管理模型」在 ZeroWork 下改道 ZeroCode 配置（~/.zerowork/config.toml），不再进坏的 modelProvider。
   const handleOpenModelProviderSettings = useCallback(() => {
-    setPendingSettingsSectionIntent("modelProvider");
+    setPendingSettingsSectionIntent("zeroCodeConfig");
     openSettingsTab();
   }, [openSettingsTab]);
   const showManageModelsAction = shouldShowManageModelsAction(handleOpenModelProviderSettings);

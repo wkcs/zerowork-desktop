@@ -2,12 +2,19 @@ import { watch, type FSWatcher } from "node:fs";
 import { createHash } from "node:crypto";
 import { mkdir, readFile } from "node:fs/promises";
 import { basename, dirname, resolve } from "node:path";
-import type { ProviderConfigLayerSnapshot, ProviderSource } from "@zcode/provider";
+import {
+  ModelConfigRules,
+  ProviderConfigMap,
+  ProviderTemplateMap,
+  type ProviderConfigLayerSnapshot,
+  type ProviderSource,
+} from "@zcode/provider";
 import { atomicWritePrivateTextFile, withFileLock } from "@zcode/shared/node";
 import {
   decodeZCodeBuiltinRelease,
   encodeZCodeBuiltinRelease,
   serializeZCodeBuiltinRelease,
+  ZCODE_BUILTIN_RELEASE_SCHEMA_VERSION,
   type ZCodeBuiltinRelease,
 } from "./zcode-builtin-release.js";
 
@@ -195,14 +202,27 @@ function selectReleaseCandidate(
     (candidate): candidate is ZCodeBuiltinRelease => candidate !== undefined,
   );
   if (valid.length === 0) {
-    throw new AggregateError(
-      [bundled?.error, active?.error].filter((error) => error !== undefined),
-      "Bundled 与 Active ZCode Built-in Release 均不可用",
-    );
+    // ZeroWork 产品路径不再依赖 ZCode Built-in Release；Bundled/Active 均缺失或损坏时
+    // fail-soft 为空 Release，避免 AggregateError 刷屏 provider-settings / model-selection.getView。
+    // 真实损坏细节留在 ReleaseCandidate.error，由上层按需 debug，不再对每次 getView 抛栈。
+    return createEmptyZCodeBuiltinRelease();
   }
   return valid.reduce((newest, candidate) =>
     candidate.revision > newest.revision ? candidate : newest,
   );
+}
+
+/** 空 Built-in Release：无供应商/模板/模型规则，revision=0。 */
+export function createEmptyZCodeBuiltinRelease(): ZCodeBuiltinRelease {
+  return Object.freeze({
+    schemaVersion: ZCODE_BUILTIN_RELEASE_SCHEMA_VERSION,
+    revision: 0,
+    config: Object.freeze({
+      providers: ProviderConfigMap.empty(),
+      providerTemplates: ProviderTemplateMap.empty(),
+      modelConfigRules: ModelConfigRules.empty(),
+    }),
+  });
 }
 
 function snapshotFromRelease(

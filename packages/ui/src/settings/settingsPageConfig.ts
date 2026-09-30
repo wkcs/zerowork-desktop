@@ -198,13 +198,15 @@ export function createSettingsPageConfig({
 export function resolveSettingsSectionForPlatform(
   section: SettingsSectionId,
   visibleSections: ReadonlyArray<Pick<SettingsSectionDefinition, "id">>,
-  fallbackSection: SettingsSectionId = "general",
+  fallbackSection: SettingsSectionId = "zeroCodeConfig",
 ): SettingsSectionId {
   if (visibleSections.some((candidate) => candidate.id === section)) return section;
   if (visibleSections.some((candidate) => candidate.id === fallbackSection)) {
     return fallbackSection;
   }
-  return visibleSections[0]?.id ?? "general";
+  const zeroCode = visibleSections.find((candidate) => candidate.id === "zeroCodeConfig");
+  if (zeroCode) return zeroCode.id;
+  return visibleSections[0]?.id ?? "zeroCodeConfig";
 }
 
 export type { SettingsSectionId };

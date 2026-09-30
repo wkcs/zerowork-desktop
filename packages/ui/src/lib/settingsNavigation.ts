@@ -44,6 +44,11 @@ const HIDDEN_SETTINGS_SECTIONS = new Set<SettingsSectionId>([
   // 编辑页代码保留，放开时从这里移除即可。
   "workspaceFileSearch",
   "computerUse",
+  // ZeroWork：旧「模型设置」依赖 ZCode Built-in Release / provider-settings，会启动即 FAIL。
+  // 产品路径是 ZeroCode 配置（~/.zerowork/config.toml）；代码保留，放开时从这里移除即可。
+  "modelProvider",
+  // Usage / Coding Plan 统计仍走 provider-settings / BigModel entitlement，一并隐藏以免坏链路。
+  "usage",
 ]);
 
 interface SettingsSectionIntentEventDetail {
@@ -89,10 +94,20 @@ export function isSettingsSectionEnabled(section: SettingsSectionId): boolean {
 
 export function resolveSettingsSection(
   section: SettingsSectionId,
-  fallbackSection: SettingsSectionId = "general",
+  fallbackSection: SettingsSectionId = "zeroCodeConfig",
 ): SettingsSectionId {
   if (section === "plugins") return "plugin";
-  return isSettingsSectionEnabled(section) ? section : fallbackSection;
+  // 旧模型设置 / 使用统计在 ZeroWork 下隐藏：显式意图与上次分区记忆都改道 ZeroCode 配置。
+  if (section === "modelProvider" || section === "usage") {
+    return "zeroCodeConfig";
+  }
+  if (isSettingsSectionEnabled(section)) {
+    return section;
+  }
+  if (fallbackSection !== section && isSettingsSectionEnabled(fallbackSection)) {
+    return fallbackSection;
+  }
+  return "zeroCodeConfig";
 }
 
 function getLocalStorage(): Storage | null {
@@ -112,7 +127,7 @@ function getLocalStorage(): Storage | null {
 }
 
 function readLastSettingsSectionPreference(
-  fallbackSection: SettingsSectionId = "general",
+  fallbackSection: SettingsSectionId = "zeroCodeConfig",
 ): SettingsSectionId {
   const storage = getLocalStorage();
   if (!storage) {
@@ -168,12 +183,11 @@ export function writeLastSettingsSectionPreference(section: SettingsSectionId): 
 }
 
 export function consumeInitialSettingsSection(
-  fallbackSection: SettingsSectionId = "general",
+  fallbackSection: SettingsSectionId = "zeroCodeConfig",
 ): SettingsSectionId {
   const lastSection = readLastSettingsSectionPreference(fallbackSection);
-  // 普通打开设置页以前把 consumePendingSettingsSection 的 fallback 写死为
-  // modelProvider，导致没有显式跳转意图时也总进“模型供应商”。这里先读上次停留分区，
-  // 再让 quickpick / 管理模型这类一次性意图覆盖它，保留显式入口的直达语义。
+  // 普通打开设置页：无上次分区 / 无显式意图时默认进 ZeroCode 配置（BYOK）。
+  // 仍先读上次停留分区，再让一次性意图覆盖；隐藏的 modelProvider/usage 意图会改道。
   return resolveSettingsSection(consumePendingSettingsSection(lastSection), lastSection);
 }
 
@@ -227,6 +241,9 @@ export function setPendingSettingsSectionIntent(
   if (typeof window === "undefined") {
     return;
   }
+
+  // 隐藏分区（modelProvider / usage 等）在写入意图前改道，避免事件/sessionStorage 仍带坏入口。
+  section = resolveSettingsSection(section, "zeroCodeConfig");
 
   try {
     window.sessionStorage.setItem(SETTINGS_SECTION_INTENT_KEY, section);
@@ -292,7 +309,7 @@ function clearPendingSettingsSectionIntent(): void {
 }
 
 function consumePendingSettingsSection(
-  fallbackSection: SettingsSectionId = "general",
+  fallbackSection: SettingsSectionId = "zeroCodeConfig",
 ): SettingsSectionId {
   if (typeof window === "undefined") {
     return fallbackSection;
@@ -450,7 +467,8 @@ export function addPendingSettingsSectionListener(
       // 这里同步清掉 sessionStorage，避免用户随后切到别的分区并退出后，
       // 下次挂载又被陈旧 pending 意图覆盖“上次停留分区”。
       clearPendingSettingsSectionIntent();
-      listener(detail.section, detail);
+      const resolved = resolveSettingsSection(detail.section, "zeroCodeConfig");
+      listener(resolved, { ...detail, section: resolved });
     }
   };
 

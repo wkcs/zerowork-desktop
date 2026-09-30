@@ -3983,7 +3983,7 @@ export function SessionPane({
     sendSubmissionError,
   ]);
   const handleOpenModelSettings = useCallback(() => {
-    setPendingSettingsSectionIntent("modelProvider");
+    setPendingSettingsSectionIntent("zeroCodeConfig");
     openSettingsTab();
   }, [openSettingsTab]);
   const handleOpenModelUpgrade = useCallback(() => {
