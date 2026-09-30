@@ -194,6 +194,265 @@ preferred_method = "api_key"
   return { configPath };
 }
 
+
+/** MVP-7: one model entry from config.toml (never includes raw api_key). */
+export interface ZeroCodeConfigModelEntry {
+  id: string;
+  name?: string;
+  baseUrl?: string;
+  /** Upstream model id from the `model` key. */
+  model?: string;
+  apiKeySet: boolean;
+  /** Last 4 characters of api_key when present; omitted when no key. */
+  apiKeyMasked?: string;
+}
+
+/** MVP-7: Host snapshot of ~/.zerowork/config.toml for the settings page. */
+export interface ZeroCodeConfigSnapshot {
+  configPath: string;
+  preferredMethod: string | null;
+  defaultModelId: string | null;
+  models: ZeroCodeConfigModelEntry[];
+}
+
+/** MVP-7: one model upsert for writeZeroCodeConfig. */
+export interface ZeroCodeConfigModelWrite {
+  id: string;
+  name?: string;
+  baseUrl?: string;
+  model?: string;
+  /** When omitted or blank, keep any existing api_key for this id. */
+  apiKey?: string;
+}
+
+/** MVP-7: merge write into config.toml (settings page). */
+export interface WriteZeroCodeConfigInput {
+  defaultModelId?: string;
+  models: ZeroCodeConfigModelWrite[];
+}
+
+interface TomlSection {
+  /** Exact header without brackets, e.g. "auth", "model.foo"; null = preamble. */
+  header: string | null;
+  /** Body text for the section (may be empty). */
+  body: string;
+}
+
+function escapeRegex(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+function parseTomlSections(text: string): TomlSection[] {
+  if (!text) return [{ header: null, body: "" }];
+  const lines = text.split(/\r?\n/);
+  const sections: TomlSection[] = [];
+  let header: string | null = null;
+  let buf: string[] = [];
+  const flush = () => {
+    sections.push({ header, body: buf.join("\n") });
+    buf = [];
+  };
+  const headerRe = /^\s*\[([^\]]+)\]\s*(?:#.*)?$/;
+  for (const line of lines) {
+    const m = line.match(headerRe);
+    if (m) {
+      flush();
+      header = m[1]!.trim();
+      continue;
+    }
+    buf.push(line);
+  }
+  flush();
+  return sections;
+}
+
+function serializeTomlSections(sections: TomlSection[]): string {
+  const chunks: string[] = [];
+  for (const sec of sections) {
+    if (sec.header == null) {
+      const body = sec.body.replace(/\n+$/, "");
+      if (body.length > 0) chunks.push(body);
+      continue;
+    }
+    const body = sec.body.replace(/^\n+/, "").replace(/\n+$/, "");
+    if (body.length === 0) {
+      chunks.push(`[${sec.header}]`);
+    } else {
+      chunks.push(`[${sec.header}]\n${body}`);
+    }
+  }
+  if (chunks.length === 0) return "";
+  return `${chunks.join("\n\n")}\n`;
+}
+
+function getTomlStringKey(body: string, key: string): string | null {
+  const re = new RegExp(
+    `^\\s*${escapeRegex(key)}\\s*=\\s*(?:"((?:\\\\.|[^"\\\\])*)"|'([^']*)')`,
+    "m",
+  );
+  const m = body.match(re);
+  if (!m) return null;
+  if (m[1] !== undefined) {
+    return m[1].replace(/\\\\/g, "\\").replace(/\\"/g, '"');
+  }
+  return m[2] ?? null;
+}
+
+function setTomlStringKey(body: string, key: string, value: string): string {
+  const escaped = escapeTomlBasicString(value);
+  const assignment = `${key} = "${escaped}"`;
+  const re = new RegExp(`^(\\s*)${escapeRegex(key)}\\s*=\\s*.*$`, "m");
+  if (re.test(body)) {
+    return body.replace(re, `$1${assignment}`);
+  }
+  const trimmedEnd = body.replace(/\s+$/, "");
+  if (trimmedEnd.length === 0) return `${assignment}\n`;
+  return `${trimmedEnd}\n${assignment}\n`;
+}
+
+function findSection(sections: TomlSection[], header: string): TomlSection | undefined {
+  return sections.find((s) => s.header === header);
+}
+
+function ensureSection(sections: TomlSection[], header: string): TomlSection {
+  const existing = findSection(sections, header);
+  if (existing) return existing;
+  const created: TomlSection = { header, body: "" };
+  sections.push(created);
+  return created;
+}
+
+function assertTomlSafeModelId(id: string): void {
+  if (typeof id !== "string" || id.length === 0) {
+    throw new Error("model id is empty");
+  }
+  if (/[.\n\r\[\]]/.test(id)) {
+    throw new Error(
+      `invalid model id ${JSON.stringify(id)}: must not contain dots, brackets, or newlines`,
+    );
+  }
+}
+
+function maskApiKey(apiKey: string): string {
+  if (apiKey.length <= 4) return apiKey;
+  return apiKey.slice(-4);
+}
+
+/**
+ * MVP-7: read ZeroCode config.toml for the settings page.
+ * Never returns raw api_key values.
+ */
+export function readZeroCodeConfig(
+  env: NodeJS.ProcessEnv = process.env,
+): ZeroCodeConfigSnapshot {
+  const configPath = resolveAgentConfigTomlPath(env);
+  let text = "";
+  if (existsSync(configPath)) {
+    try {
+      text = readFileSync(configPath, "utf8");
+    } catch {
+      text = "";
+    }
+  }
+  const sections = parseTomlSections(text);
+  const auth = findSection(sections, "auth");
+  const modelsSec = findSection(sections, "models");
+  const preferredMethod = auth ? getTomlStringKey(auth.body, "preferred_method") : null;
+  const defaultModelId = modelsSec ? getTomlStringKey(modelsSec.body, "default") : null;
+  const models: ZeroCodeConfigModelEntry[] = [];
+  for (const sec of sections) {
+    if (!sec.header || !sec.header.startsWith("model.")) continue;
+    const id = sec.header.slice("model.".length);
+    if (!id || id.includes(".")) continue;
+    const name = getTomlStringKey(sec.body, "name") ?? undefined;
+    const baseUrl = getTomlStringKey(sec.body, "base_url") ?? undefined;
+    const model = getTomlStringKey(sec.body, "model") ?? undefined;
+    const apiKey = getTomlStringKey(sec.body, "api_key");
+    const apiKeySet = typeof apiKey === "string" && apiKey.length > 0;
+    const entry: ZeroCodeConfigModelEntry = {
+      id,
+      apiKeySet,
+    };
+    if (name !== undefined && name.length > 0) entry.name = name;
+    if (baseUrl !== undefined && baseUrl.length > 0) entry.baseUrl = baseUrl;
+    if (model !== undefined && model.length > 0) entry.model = model;
+    if (apiKeySet && apiKey) entry.apiKeyMasked = maskApiKey(apiKey);
+    models.push(entry);
+  }
+  return {
+    configPath,
+    preferredMethod,
+    defaultModelId,
+    models,
+  };
+}
+
+/**
+ * MVP-7: merge-write ZeroCode config.toml for the settings page.
+ * Always sets [auth] preferred_method = "api_key".
+ * Preserves unrelated tables/keys and comments outside replaced keys.
+ * Does not invent a fake [model.zerocode] / 127.0.0.1:9 product default.
+ * Does not log secrets.
+ */
+export function writeZeroCodeConfig(
+  input: WriteZeroCodeConfigInput,
+  env: NodeJS.ProcessEnv = process.env,
+): { configPath: string } {
+  if (!input || !Array.isArray(input.models)) {
+    throw new Error("writeZeroCodeConfig requires input.models array");
+  }
+  const dataDir = resolveAgentDataDir(env);
+  const configPath = resolveAgentConfigTomlPath(env);
+  mkdirSync(dataDir, { recursive: true, mode: 0o700 });
+
+  let existing = "";
+  if (existsSync(configPath)) {
+    try {
+      existing = readFileSync(configPath, "utf8");
+    } catch {
+      existing = "";
+    }
+  }
+
+  const sections = parseTomlSections(existing);
+
+  const auth = ensureSection(sections, "auth");
+  auth.body = setTomlStringKey(auth.body, "preferred_method", "api_key");
+
+  const defaultModelId =
+    typeof input.defaultModelId === "string" ? input.defaultModelId.trim() : "";
+  if (defaultModelId) {
+    const modelsSec = ensureSection(sections, "models");
+    modelsSec.body = setTomlStringKey(modelsSec.body, "default", defaultModelId);
+  }
+
+  for (const modelWrite of input.models) {
+    assertTomlSafeModelId(modelWrite.id);
+    const header = `model.${modelWrite.id}`;
+    const sec = ensureSection(sections, header);
+    if (typeof modelWrite.name === "string" && modelWrite.name.trim()) {
+      sec.body = setTomlStringKey(sec.body, "name", modelWrite.name.trim());
+    }
+    if (typeof modelWrite.baseUrl === "string" && modelWrite.baseUrl.trim()) {
+      sec.body = setTomlStringKey(sec.body, "base_url", modelWrite.baseUrl.trim());
+    }
+    if (typeof modelWrite.model === "string" && modelWrite.model.trim()) {
+      sec.body = setTomlStringKey(sec.body, "model", modelWrite.model.trim());
+    }
+    if (typeof modelWrite.apiKey === "string" && modelWrite.apiKey.trim()) {
+      sec.body = setTomlStringKey(sec.body, "api_key", modelWrite.apiKey.trim());
+    }
+  }
+
+  const next = serializeTomlSections(sections);
+  writeFileSync(configPath, next.endsWith("\n") ? next : `${next}\n`, {
+    encoding: "utf8",
+    mode: 0o600,
+  });
+  return { configPath };
+}
+
+
 /**
  * Read-only heuristic: config.toml already has a BYOK key path
  * (`api_key = …` plus preferably preferred_method = api_key).

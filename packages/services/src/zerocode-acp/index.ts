@@ -70,6 +70,8 @@ export {
   extractAuthFailureParts,
   hasByokKeyPathInConfig,
   writeByokApiKeyToConfig,
+  readZeroCodeConfig,
+  writeZeroCodeConfig,
   parseInitializeAuthSnapshot,
   projectAuthFailureToSessionUiEvent,
   resolveAgentConfigTomlPath,
@@ -79,5 +81,9 @@ export {
   type AcpAuthMethod,
   type AuthenticateResult,
   type InitializeAuthSnapshot,
+  type ZeroCodeConfigModelEntry,
+  type ZeroCodeConfigModelWrite,
+  type ZeroCodeConfigSnapshot,
+  type WriteZeroCodeConfigInput,
 } from "./authSurface.js";
 

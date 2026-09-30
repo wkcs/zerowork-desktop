@@ -8,6 +8,8 @@ export {
   type SessionHandle,
   type SessionUiEvent,
   type AuthenticateResult,
+  type ZeroCodeConfigSnapshot,
+  type WriteZeroCodeConfigInput,
 } from "./zerocodeSessionPort.js";
 
 export {
