@@ -19,6 +19,7 @@ export {
   resolveHostDefaultAgentRuntime,
   isZeroCodeAcpDefaultAgentRuntime,
   shouldRegisterZeroCodeSessionPortService,
+  requiresZCodeAgentSessionStoragePrep,
   ZEROWORK_DEFAULT_AGENT_RUNTIME_ENV,
   ZEROWORK_MVP1_SESSION_PORT_ENV,
   type HostDefaultAgentRuntimeKind,

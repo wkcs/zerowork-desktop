@@ -58,3 +58,18 @@ export function shouldRegisterZeroCodeSessionPortService(
 ): boolean {
   return isZeroCodeAcpDefaultAgentRuntime(env);
 }
+
+/**
+ * Whether Host DB startup must run the legacy zcode-agent `--prepare-storage`
+ * worker (`prepareSessionStorage`).
+ *
+ * Product default (`zerocode-acp`) owns session storage inside ZeroCode; the
+ * zcode-cli/zcode-agent storage worker is NOT required and must not fail
+ * startup with `unsupported_runtime` when that binary/bundle is absent.
+ * Only the explicit legacy opt-out path requires that worker.
+ */
+export function requiresZCodeAgentSessionStoragePrep(
+  env: HostDefaultAgentRuntimeEnv = process.env,
+): boolean {
+  return resolveHostDefaultAgentRuntime(env) === "zcode-cli";
+}

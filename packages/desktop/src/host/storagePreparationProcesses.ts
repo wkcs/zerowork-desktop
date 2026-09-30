@@ -12,6 +12,7 @@ import {
   type DatabaseStartupState,
 } from "@zcode/shared";
 import { resolveDefaultZCodeAgentCommand } from "@zcode/services/storage-startup";
+import { requiresZCodeAgentSessionStoragePrep } from "@zcode/services";
 
 type Phase = NonNullable<DatabaseStartupState["databasePhase"]>;
 const workerMessageSchema = z.discriminatedUnion("type", [
@@ -118,6 +119,14 @@ export async function prepareSessionStorage(options: {
   preparedPaths?: Set<string>;
   observePath: (path: string) => Promise<void>;
 }): Promise<void> {
+  // Product default is ZeroCode ACP: session storage lives in zerocode / ~/.zerowork,
+  // not the legacy zcode-agent `--prepare-storage` worker. Requiring that worker when
+  // zcode-cli/bundle is absent failed Host DB startup with `unsupported_runtime` and
+  // blocked `zerocode agent stdio` spawn. Skip the worker for ACP; keep it for
+  // explicit zcode-cli opt-out only.
+  if (!requiresZCodeAgentSessionStoragePrep()) {
+    return;
+  }
   const command = resolveDefaultZCodeAgentCommand({
     workspacePath: options.cwd,
     workspaceKey: options.cwd,

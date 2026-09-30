@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import {
   isZeroCodeAcpDefaultAgentRuntime,
+  requiresZCodeAgentSessionStoragePrep,
   resolveHostDefaultAgentRuntime,
   shouldRegisterZeroCodeSessionPortService,
   ZEROWORK_DEFAULT_AGENT_RUNTIME_ENV,
@@ -59,4 +60,30 @@ test("default path never silently selects zcode-cli without explicit opt-out", (
     resolveHostDefaultAgentRuntime({ [ZEROWORK_MVP1_SESSION_PORT_ENV]: "1" }),
     "zerocode-acp",
   );
+});
+
+test("ACP default skips zcode-agent session storage prep", () => {
+  assert.equal(requiresZCodeAgentSessionStoragePrep({}), false);
+  assert.equal(
+    requiresZCodeAgentSessionStoragePrep({ [ZEROWORK_DEFAULT_AGENT_RUNTIME_ENV]: "zerocode-acp" }),
+    false,
+  );
+  assert.equal(
+    requiresZCodeAgentSessionStoragePrep({ [ZEROWORK_DEFAULT_AGENT_RUNTIME_ENV]: "acp" }),
+    false,
+  );
+});
+
+test("legacy zcode-cli opt-out still requires session storage prep", () => {
+  assert.equal(
+    requiresZCodeAgentSessionStoragePrep({ [ZEROWORK_MVP1_SESSION_PORT_ENV]: "0" }),
+    true,
+  );
+  for (const value of ["zcode-cli", "zcode-agent", "glm"]) {
+    assert.equal(
+      requiresZCodeAgentSessionStoragePrep({ [ZEROWORK_DEFAULT_AGENT_RUNTIME_ENV]: value }),
+      true,
+      value,
+    );
+  }
 });
