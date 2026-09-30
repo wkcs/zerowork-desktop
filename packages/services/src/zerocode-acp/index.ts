@@ -57,3 +57,25 @@ export {
   extractTextContent,
   type ProjectedSessionUpdate,
 } from "./projectSessionUpdate.js";
+
+export {
+  ACP_AUTH_METHOD_XAI_API_KEY,
+  ACP_AUTH_METHOD_GROK_COM,
+  AUTH_CREDENTIALS_MISSING_CODE,
+  AuthCredentialsMissingError,
+  advertisesXaiApiKey,
+  buildAuthenticateGuidanceResult,
+  buildByokConfigGuidance,
+  extractAuthFailureParts,
+  hasByokKeyPathInConfig,
+  parseInitializeAuthSnapshot,
+  projectAuthFailureToSessionUiEvent,
+  resolveAgentConfigTomlPath,
+  resolveAgentDataDir,
+  shouldSkipAuthenticate,
+  toAuthCredentialsMissingError,
+  type AcpAuthMethod,
+  type AuthenticateResult,
+  type InitializeAuthSnapshot,
+} from "./authSurface.js";
+

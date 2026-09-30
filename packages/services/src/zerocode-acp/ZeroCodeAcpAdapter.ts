@@ -22,6 +22,22 @@ import {
 } from "./resolveZeroCodeBin.js";
 import { buildSessionNewMeta, buildZeroCodeAgentSpawnSpec } from "./spawnSpec.js";
 import { projectSessionUpdate } from "./projectSessionUpdate.js";
+import {
+  ACP_AUTH_METHOD_GROK_COM,
+  ACP_AUTH_METHOD_XAI_API_KEY,
+  AUTH_CREDENTIALS_MISSING_CODE,
+  AuthCredentialsMissingError,
+  advertisesXaiApiKey,
+  buildAuthenticateGuidanceResult,
+  buildByokConfigGuidance,
+  hasByokKeyPathInConfig,
+  parseInitializeAuthSnapshot,
+  projectAuthFailureToSessionUiEvent,
+  shouldSkipAuthenticate,
+  toAuthCredentialsMissingError,
+  type AuthenticateResult,
+  type InitializeAuthSnapshot,
+} from "./authSurface.js";
 import type {
   AgentStatus,
   ConfigOption,
@@ -76,6 +92,8 @@ export class ZeroCodeAcpAdapter implements SessionPort {
   private transport: JsonRpcStdioTransport | null = null;
   private sessions = new Map<string, ActiveSession>();
   private readyPromise: Promise<void> | null = null;
+  /** Captured from ACP initialize (authMethods / defaultAuthMethodId). */
+  private initializeAuth: InitializeAuthSnapshot | null = null;
 
   constructor(private readonly options: ZeroCodeAcpAdapterOptions = {}) {}
 
@@ -159,10 +177,20 @@ export class ZeroCodeAcpAdapter implements SessionPort {
     });
     this.transport = transport;
 
-    await transport.request("initialize", {
+    const initResult = await transport.request("initialize", {
       protocolVersion: ACP_PROTOCOL_VERSION,
       clientCapabilities: DEFAULT_CLIENT_CAPABILITIES,
     });
+    this.initializeAuth = parseInitializeAuthSnapshot(initResult);
+    this.options.log?.(
+      `[zerocode-acp] initialize authMethods=${JSON.stringify(
+        this.initializeAuth.authMethods.map((m) => m.id),
+      )} defaultAuthMethodId=${this.initializeAuth.defaultAuthMethodId}`,
+    );
+  }
+
+  getInitializeAuthSnapshot(): InitializeAuthSnapshot | null {
+    return this.initializeAuth;
   }
 
   async openSession(input: OpenSessionInput): Promise<SessionHandle> {
@@ -171,17 +199,62 @@ export class ZeroCodeAcpAdapter implements SessionPort {
       throw new Error("ZeroCode ACP transport not ready");
     }
 
+    // Card B: if xai.api_key is not advertised, surface BYOK guidance (ignore grok.com).
+    if (!advertisesXaiApiKey(this.initializeAuth)) {
+      const guidance = buildByokConfigGuidance();
+      const onlyGrok =
+        this.initializeAuth != null &&
+        this.initializeAuth.authMethods.length > 0 &&
+        this.initializeAuth.authMethods.every((m) => m.id === ACP_AUTH_METHOD_GROK_COM);
+      const extra = onlyGrok
+        ? " Agent advertised only grok.com (ignored by ZeroWork Host)."
+        : " Agent did not advertise xai.api_key.";
+      const event: SessionUiEvent = {
+        type: "error",
+        message: `${guidance.message}${extra}`,
+        retriable: true,
+      };
+      this.lastError = event.message;
+      throw new AuthCredentialsMissingError(event);
+    }
+
+    // Optional ACP authenticate only when BYOK path exists and default is not already set.
+    if (!shouldSkipAuthenticate(this.initializeAuth)) {
+      if (hasByokKeyPathInConfig()) {
+        await this.authenticate(ACP_AUTH_METHOD_XAI_API_KEY);
+      } else {
+        // Key path missing even though method advertised — still try session/new;
+        // auth-shaped RPC error will be projected below.
+        this.options.log?.(
+          "[zerocode-acp] xai.api_key advertised but no BYOK api_key in config.toml; skipping authenticate",
+        );
+      }
+    }
+
     const meta: Record<string, unknown> = {
       ...(buildSessionNewMeta(input.permissionMode) ?? {}),
     };
     if (input.model) {
       meta.model = input.model;
     }
-    const result = (await this.transport.request("session/new", {
-      cwd: input.workspacePath,
-      mcpServers: input.mcpServers ?? [],
-      ...(Object.keys(meta).length > 0 ? { _meta: meta } : {}),
-    })) as { sessionId?: string };
+
+    let result: { sessionId?: string };
+    try {
+      result = (await this.transport.request("session/new", {
+        cwd: input.workspacePath,
+        mcpServers: input.mcpServers ?? [],
+        ...(Object.keys(meta).length > 0 ? { _meta: meta } : {}),
+      })) as { sessionId?: string };
+    } catch (err) {
+      const authErr = toAuthCredentialsMissingError(err);
+      if (authErr) {
+        this.lastError = authErr.message;
+        // No session yet — callers (SessionPort service / UI catch) surface the message.
+        // Projection shape matches SessionUiEvent error for unit tests / later emit.
+        throw authErr;
+      }
+      throw err;
+    }
 
     const sessionId = result?.sessionId;
     if (!sessionId || typeof sessionId !== "string") {
@@ -210,10 +283,23 @@ export class ZeroCodeAcpAdapter implements SessionPort {
       content.push({ type: "resource", path: att.path });
     }
 
-    const result = (await this.transport.request("session/prompt", {
-      sessionId,
-      prompt: content,
-    })) as { stopReason?: string };
+    let result: { stopReason?: string };
+    try {
+      result = (await this.transport.request("session/prompt", {
+        sessionId,
+        prompt: content,
+      })) as { stopReason?: string };
+    } catch (err) {
+      const authEvent = projectAuthFailureToSessionUiEvent(err);
+      if (authEvent) {
+        this.lastError = authEvent.message;
+        this.emit(sessionId, authEvent);
+        throw new AuthCredentialsMissingError(authEvent);
+      }
+      const message = err instanceof Error ? err.message : String(err);
+      this.emit(sessionId, { type: "error", message, retriable: true });
+      throw err instanceof Error ? err : new Error(message);
+    }
 
     this.emit(sessionId, {
       type: "turn_completed",
@@ -284,6 +370,114 @@ export class ZeroCodeAcpAdapter implements SessionPort {
     };
   }
 
+  /**
+   * Host auth / BYOK entry (MVP-2 card B).
+   * - Never opens grok.com / auth.x.ai browser login.
+   * - If methodId is grok.com (or omitted while only grok.com advertised): return guidance.
+   * - If BYOK missing: return AUTH_CREDENTIALS_MISSING / AUTH_BYOK_GUIDANCE (do not write keys).
+   * - If defaultAuthMethodId already xai.api_key: skip ACP authenticate.
+   * - Else with BYOK present: call ACP `authenticate` { methodId: "xai.api_key" }.
+   */
+  async authenticate(methodId?: string): Promise<AuthenticateResult> {
+    await this.ensureReady();
+    const guidanceBase = buildAuthenticateGuidanceResult(this.initializeAuth);
+
+    const requested =
+      typeof methodId === "string" && methodId.trim()
+        ? methodId.trim()
+        : ACP_AUTH_METHOD_XAI_API_KEY;
+
+    if (requested === ACP_AUTH_METHOD_GROK_COM) {
+      return {
+        ...guidanceBase,
+        ok: false,
+        code: AUTH_CREDENTIALS_MISSING_CODE,
+        message:
+          `${guidanceBase.message} Refused methodId=grok.com (ZeroWork Host does not use browser OAuth).`,
+        methodId: requested,
+        calledAcpAuthenticate: false,
+      };
+    }
+
+    if (requested !== ACP_AUTH_METHOD_XAI_API_KEY) {
+      return {
+        ...guidanceBase,
+        ok: false,
+        code: "AUTH_METHOD_UNAVAILABLE",
+        message: `${guidanceBase.message} Unsupported auth methodId=${requested}; only xai.api_key is supported.`,
+        methodId: requested,
+        calledAcpAuthenticate: false,
+      };
+    }
+
+    if (!advertisesXaiApiKey(this.initializeAuth)) {
+      this.lastError = guidanceBase.message;
+      return guidanceBase;
+    }
+
+    if (shouldSkipAuthenticate(this.initializeAuth)) {
+      return {
+        ...guidanceBase,
+        ok: true,
+        code: "AUTH_SKIPPED_DEFAULT",
+        message:
+          "initialize _meta.defaultAuthMethodId is already xai.api_key; ACP authenticate not required.",
+        methodId: ACP_AUTH_METHOD_XAI_API_KEY,
+        calledAcpAuthenticate: false,
+      };
+    }
+
+    if (!hasByokKeyPathInConfig()) {
+      const guidance = buildByokConfigGuidance();
+      const result: AuthenticateResult = {
+        ok: false,
+        code: "AUTH_BYOK_GUIDANCE",
+        message: `${guidance.message} Write BYOK to config.toml before calling authenticate.`,
+        methodId: ACP_AUTH_METHOD_XAI_API_KEY,
+        calledAcpAuthenticate: false,
+        configPath: guidance.configPath,
+        byokTemplate: guidance.byokTemplate,
+      };
+      this.lastError = result.message;
+      return result;
+    }
+
+    if (!this.transport || this.transport.isClosed) {
+      throw new Error("ZeroCode ACP transport not ready");
+    }
+
+    try {
+      await this.transport.request("authenticate", {
+        methodId: ACP_AUTH_METHOD_XAI_API_KEY,
+      });
+    } catch (err) {
+      const authErr = toAuthCredentialsMissingError(err);
+      if (authErr) {
+        this.lastError = authErr.message;
+        return {
+          ok: false,
+          code: AUTH_CREDENTIALS_MISSING_CODE,
+          message: authErr.message,
+          methodId: ACP_AUTH_METHOD_XAI_API_KEY,
+          calledAcpAuthenticate: true,
+          configPath: guidanceBase.configPath,
+          byokTemplate: guidanceBase.byokTemplate,
+        };
+      }
+      throw err;
+    }
+
+    return {
+      ok: true,
+      code: "AUTH_APPLIED",
+      message: "ACP authenticate applied with methodId xai.api_key (BYOK via config.toml).",
+      methodId: ACP_AUTH_METHOD_XAI_API_KEY,
+      calledAcpAuthenticate: true,
+      configPath: guidanceBase.configPath,
+      byokTemplate: guidanceBase.byokTemplate,
+    };
+  }
+
   /** Graceful shutdown of the agent process. */
   async stop(): Promise<void> {
     if (this.status === "Idle" || this.status === "Failed") {
@@ -294,6 +488,7 @@ export class ZeroCodeAcpAdapter implements SessionPort {
     this.transition("Stopping");
     this.killChild();
     this.sessions.clear();
+    this.initializeAuth = null;
     this.transition("Idle");
   }
 

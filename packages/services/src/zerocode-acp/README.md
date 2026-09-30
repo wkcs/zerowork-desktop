@@ -68,3 +68,11 @@ Real ACP `session/update` params nest the payload:
 
 Host projection lives in `projectSessionUpdate.ts` (`agent_message_chunk` → `assistant_text_delta`). Flat legacy params are tolerated. Enable `debugSessionUpdates` on the adapter to log raw notification params while diagnosing.
 
+## MVP-2 card B — auth / BYOK
+
+- Auth failures on `session/new` project to SessionUiEvent `{ type: "error", message, retriable }`.
+- Stable code in `message`: `AUTH_CREDENTIALS_MISSING` (UI may match; no new event required).
+- Host `authenticate()` explains BYOK via `~/.zerowork/config.toml`; never grok.com browser OAuth.
+- Optional ACP `authenticate` `{ methodId: "xai.api_key" }` only when BYOK path exists.
+- See `/workspace/zerocode/MVP-2-卡B-Host进展.md`.
+

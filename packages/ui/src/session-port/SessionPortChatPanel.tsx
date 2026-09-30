@@ -6,6 +6,7 @@
 
 import { useCallback, useState, type CSSProperties, type FormEvent } from "react";
 import { useOptionalServices } from "@/hooks/useServices.js";
+import { isAuthCredentialsMissing } from "./isAuthCredentialsMissing.js";
 import { useSessionPortChat } from "./useSessionPortChat.js";
 
 export type SessionPortChatPanelVariant = "dock" | "main";
@@ -62,6 +63,17 @@ const errorStyle: CSSProperties = {
   fontSize: 12,
 };
 
+/** Distinct auth/BYOK banner — higher visibility than generic error dump. */
+const authMissingBannerStyle: CSSProperties = {
+  padding: "10px 12px",
+  borderRadius: 6,
+  border: "1px solid rgba(180, 120, 0, 0.45)",
+  background: "rgba(234, 179, 8, 0.16)",
+  color: "var(--warning-fg, #92400e)",
+  fontSize: 12,
+  lineHeight: 1.45,
+};
+
 function panelTitle(variant: SessionPortChatPanelVariant): string {
   return variant === "main" ? "ZeroWork Session" : "ZeroCode SessionPort";
 }
@@ -87,6 +99,40 @@ function unavailableState(variant: SessionPortChatPanelVariant) {
         bridge is registered.
       </div>
     </section>
+  );
+}
+
+function SessionPortErrorBanner(props: {
+  message: string;
+  onDismiss: () => void;
+}) {
+  const authMissing = isAuthCredentialsMissing(props.message);
+
+  if (authMissing) {
+    return (
+      <div
+        role="alert"
+        style={authMissingBannerStyle}
+        data-testid="zerocode-session-port-auth-missing"
+      >
+        <div style={{ fontWeight: 600, marginBottom: 4, fontSize: 13 }}>
+          API key required / 需要配置 API key
+        </div>
+        <div style={{ whiteSpace: "pre-wrap", wordBreak: "break-word" }}>{props.message}</div>
+        <button type="button" onClick={props.onDismiss} style={{ marginTop: 8, fontSize: 12 }}>
+          Dismiss
+        </button>
+      </div>
+    );
+  }
+
+  return (
+    <div role="alert" style={errorStyle} data-testid="zerocode-session-port-error">
+      <div>{props.message}</div>
+      <button type="button" onClick={props.onDismiss} style={{ marginTop: 6, fontSize: 12 }}>
+        Dismiss
+      </button>
+    </div>
   );
 }
 
@@ -149,12 +195,7 @@ export function SessionPortChatPanel(props: {
       </header>
 
       {chat.error ? (
-        <div role="alert" style={errorStyle} data-testid="zerocode-session-port-error">
-          <div>{chat.error}</div>
-          <button type="button" onClick={chat.clearError} style={{ marginTop: 6, fontSize: 12 }}>
-            Dismiss
-          </button>
-        </div>
+        <SessionPortErrorBanner message={chat.error} onDismiss={chat.clearError} />
       ) : null}
 
       <div style={listStyle} data-testid="zerocode-session-port-bubbles">

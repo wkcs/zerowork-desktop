@@ -9,6 +9,11 @@
 
 import { Emitter, type Event } from "@zcode/rpc";
 import { ZeroCodeAcpAdapter } from "../zerocode-acp/ZeroCodeAcpAdapter.js";
+import {
+  AuthCredentialsMissingError,
+  projectAuthFailureToSessionUiEvent,
+  type AuthenticateResult,
+} from "../zerocode-acp/authSurface.js";
 import type {
   AgentStatus,
   PromptInput,
@@ -75,12 +80,26 @@ export function createZeroCodeSessionPortService(
 
     async openSession(input: ZeroCodeSessionPortOpenInput): Promise<SessionHandle> {
       // Card 3: never pass yolo; default ask (no --always-approve).
-      const handle = await adapter.openSession({
-        ...input,
-        permissionMode: input.permissionMode === "auto" ? "auto" : "ask",
-      });
-      ensureAdapterSubscription(handle.sessionId);
-      return handle;
+      try {
+        const handle = await adapter.openSession({
+          ...input,
+          permissionMode: input.permissionMode === "auto" ? "auto" : "ask",
+        });
+        ensureAdapterSubscription(handle.sessionId);
+        return handle;
+      } catch (err) {
+        // Auth signal is on session/new (no sessionId yet). Project same text UI already
+        // shows via catch / getLastError; when a session later exists, error events work too.
+        const authEvent =
+          err instanceof AuthCredentialsMissingError
+            ? err.sessionUiEvent
+            : projectAuthFailureToSessionUiEvent(err);
+        if (authEvent) {
+          options.log?.(`[zerocode-session-port] auth error: ${authEvent.message}`);
+          // No session emitter yet — lastError carries the projected message for UI.
+        }
+        throw err;
+      }
     },
 
     async prompt(sessionId: string, input: PromptInput): Promise<PromptResult> {
@@ -88,12 +107,17 @@ export function createZeroCodeSessionPortService(
       try {
         return await adapter.prompt(sessionId, input);
       } catch (err) {
-        const message = err instanceof Error ? err.message : String(err);
-        getEmitter(sessionId).fire({
-          type: "error",
-          message,
-          retriable: true,
-        });
+        // Adapter already emits SessionUiEvent error for auth-shaped failures via
+        // adapter.subscribe → Host emitter. For non-auth errors (legacy path), fire here.
+        if (!(err instanceof AuthCredentialsMissingError)) {
+          const authEvent = projectAuthFailureToSessionUiEvent(err);
+          const message =
+            authEvent?.message ??
+            (err instanceof Error ? err.message : String(err));
+          getEmitter(sessionId).fire(
+            authEvent ?? { type: "error", message, retriable: true },
+          );
+        }
         throw err;
       }
     },
@@ -108,6 +132,10 @@ export function createZeroCodeSessionPortService(
 
     getLastError(): string | null {
       return adapter.getLastError();
+    },
+
+    async authenticate(methodId?: string): Promise<AuthenticateResult> {
+      return adapter.authenticate(methodId);
     },
 
     onDynamicSessionUiEvent(sessionId: string): Event<SessionUiEvent> {

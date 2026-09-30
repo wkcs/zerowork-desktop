@@ -9,3 +9,7 @@ export {
   shouldForceV4SessionPane,
   shouldUseSessionPortMainChat,
 } from "./sessionPortGates.js";
+export {
+  isAuthCredentialsMissing,
+  AUTH_CREDENTIALS_MISSING_SUBSTRING,
+} from "./isAuthCredentialsMissing.js";

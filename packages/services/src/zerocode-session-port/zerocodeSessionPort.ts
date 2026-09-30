@@ -17,6 +17,7 @@ import type {
   SessionHandle,
   SessionUiEvent,
 } from "../zerocode-acp/types.js";
+import type { AuthenticateResult } from "../zerocode-acp/authSurface.js";
 
 /**
  * Keep in sync with `ServiceChannels.ZeroCodeSessionPort` in
@@ -39,6 +40,8 @@ export type {
   SessionUiEvent,
 };
 
+export type { AuthenticateResult };
+
 /**
  * Thin Host RPC facade over SessionPort.
  * Methods are sync-or-async on Host; ProxyChannel always awaits on Renderer.
@@ -50,6 +53,12 @@ export interface IZeroCodeSessionPortService {
   cancel(sessionId: string): Promise<void>;
   getStatus(): AgentStatus;
   getLastError(): string | null;
+  /**
+   * Host auth / BYOK guidance (MVP-2 card B).
+   * Never opens grok.com browser auth. May call ACP authenticate { methodId: "xai.api_key" }
+   * only when config.toml already has a BYOK key path.
+   */
+  authenticate(methodId?: string): Promise<AuthenticateResult>;
   /** Per-session projected UI events (not raw ACP). */
   onDynamicSessionUiEvent(sessionId: string): Event<SessionUiEvent>;
 }
