@@ -390,6 +390,15 @@ async function injectHoistedRuntimeModulesIntoAsar(context) {
       runAsarCommand(["extract", appAsarPath, stagingDir]),
     );
 
+    // asar extract 不会带回 app.asar.unpacked sidecar。若不把既有 native 合并进 staging，
+    // 重打包时 @electron/asar 可能不生成 .unpacked，或生成残缺 sidecar，导致 node-pty 等丢失。
+    const existingUnpackedPath = `${appAsarPath}.unpacked`;
+    if (existsSync(existingUnpackedPath)) {
+      runTimedSync("afterPack:merge-existing-asar-unpacked", () =>
+        cpSync(existingUnpackedPath, stagingDir, { recursive: true }),
+      );
+    }
+
     const stagingNodeModulesDir = resolve(stagingDir, "node_modules");
     mkdirSync(stagingNodeModulesDir, { recursive: true });
 
@@ -680,19 +689,30 @@ export default {
           },
         ]
       : []),
-    {
-      // agent shell 之前完全依赖宿主系统 PATH，GUI 启动时经常拿不到用户自己装的 rg。
-      // 这里把 ripgrep 作为桌面端内置 runtime tool 打进 resources/tools，
-      // 后续 host/server 把该目录追加到 PATH；用户版本优先，缺失时再由随包 rg 兜底。
-      from: `bundled-tools/${targetPlatform.key}/ripgrep`,
-      to: "tools/ripgrep",
-      filter: ["**/*"],
-    },
-    ...nativeSearchReleasePlan.extraResourceToolIds.map((toolId) => ({
-      from: `bundled-tools/${targetPlatform.key}/${toolId}`,
-      to: `tools/${toolId}`,
-      filter: ["**/*"],
-    })),
+    // MVP-6 卡1：本仓库 checkout 常缺 apps/zcode-cli/dependencies/native-search 归档，
+    // prepare:native-search 会 fail-closed。打包图改为「目录存在才随包」，避免缺归档阻断 linux 出包；
+    // 有归档时 prepare 仍会生成真实 bfs/ugrep/rg 并进入 extraResources。
+    ...[
+      {
+        // agent shell 之前完全依赖宿主系统 PATH，GUI 启动时经常拿不到用户自己装的 rg。
+        // 这里把 ripgrep 作为桌面端内置 runtime tool 打进 resources/tools，
+        // 后续 host/server 把该目录追加到 PATH；用户版本优先，缺失时再由随包 rg 兜底。
+        from: `bundled-tools/${targetPlatform.key}/ripgrep`,
+        to: "tools/ripgrep",
+        filter: ["**/*"],
+      },
+      ...nativeSearchReleasePlan.extraResourceToolIds.map((toolId) => ({
+        from: `bundled-tools/${targetPlatform.key}/${toolId}`,
+        to: `tools/${toolId}`,
+        filter: ["**/*"],
+      })),
+    ].filter((entry) => {
+      if (existsSync(resolve(desktopPackageRoot, entry.from))) return true;
+      console.warn(
+        `[electron-builder.config] skip missing native-search extraResource: ${entry.from}`,
+      );
+      return false;
+    }),
   ],
   // postinstall 会先优先复用 node-pty 自带的 Windows 预编译产物，其他平台再按需 electron-rebuild。
   // 打包阶段统一复用安装时准备好的原生文件，避免 electron-builder 再触发一轮不受控的本地编译。
